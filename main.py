@@ -13,6 +13,7 @@ import sys
 import json
 import copy
 import multiprocessing as mp
+import torch.nn as nn
 import torch.nn.functional as F
 import matplotlib
 matplotlib.use('agg')
@@ -121,9 +122,203 @@ def train_fd():
             server.test(use_cuda)
         server.draw_curve()
 
-if __name__ == '__main__':
-    train_fd()
 
+def test_standalone_client(client, model, device, save_dir):
+    """Test standalone model and save results"""
+    import scipy.io
+    from utils import extract_feature
+    
+    # Check if test data exists for this client
+    if client.cid not in client.data.test_loaders:
+        print(f"No test data for client {client.cid}")
+        return False
+    
+    test_loaders = client.data.test_loaders[client.cid]
+    if 'query' not in test_loaders or 'gallery' not in test_loaders:
+        print(f"No query/gallery split for client {client.cid}")
+        return False
+    
+    print(f"Testing standalone model for client {client.cid}...")
+    
+    model.eval()
+    model = model.to(device)
+    
+    # Temporarily remove classifier for feature extraction (like in federated setup)
+    original_classifier = None
+    if hasattr(model, 'classifier') and hasattr(model.classifier, 'classifier'):
+        original_classifier = model.classifier.classifier
+        model.classifier.classifier = nn.Sequential()  # Remove classifier for feature extraction
+    
+    try:
+        with torch.no_grad():
+            gallery_feature = extract_feature(model, test_loaders['gallery'], [1.0])
+            query_feature = extract_feature(model, test_loaders['query'], [1.0])
+        
+        result = {
+            'gallery_f': gallery_feature.cpu().numpy(),
+            'gallery_label': client.data.gallery_meta[client.cid]['labels'],
+            'query_f': query_feature.cpu().numpy(),
+            'query_label': client.data.query_meta[client.cid]['labels'],
+        }
+        
+        # Save .mat file
+        mat_path = os.path.join(save_dir, 'pytorch_result.mat')
+        scipy.io.savemat(mat_path, result)
+        
+        # Evaluate and save CSV results
+        output_file = os.path.join(save_dir, 'standalone_result.csv')
+        cmd = (
+            f"python evaluate.py --result_dir {save_dir} "
+            f"--dataset client_{client.cid} --output_file standalone_result.csv"
+        )
+        os.system(cmd)
+        
+        print(f"Standalone test results for client {client.cid} saved to {output_file}")
+        return True
+        
+    finally:
+        # Always restore the original classifier
+        if original_classifier is not None:
+            model.classifier.classifier = original_classifier
+    
+    return False
+
+
+def train_standalone_client(client, model, device, args, save_dir):
+    """Train a single client's model independently"""
+    import torch.nn as nn
+    from torch.optim import lr_scheduler
+    from utils import get_optimizer
+    import time
+    
+    # Set up the model like in federated training
+    # The model should have its classifier attached for training
+    if hasattr(model, 'classifier') and hasattr(model.classifier, 'classifier'):
+        # Make sure the classifier is properly set up
+        if isinstance(model.classifier.classifier, nn.Sequential) and len(model.classifier.classifier) == 0:
+            # Need to create a proper classifier
+            model.classifier.classifier = client.classifier
+    
+    model.train()
+    
+    optimizer = get_optimizer(model, args.lr)
+    scheduler = lr_scheduler.StepLR(optimizer, step_size=40, gamma=0.1)
+    criterion = nn.CrossEntropyLoss()
+    
+    epochs = 50  # More epochs for standalone training
+    best_acc = 0.0
+    
+    print(f"Training standalone model for {epochs} epochs...")
+    
+    for epoch in range(epochs):
+        print(f'Epoch {epoch+1}/{epochs}')
+        print('-' * 10)
+        
+        model.train(True)
+        running_loss = 0.0
+        running_corrects = 0.0
+        
+        for data in client.train_loader:
+            inputs, labels = data
+            b, c, h, w = inputs.shape
+            if b < args.batch_size:
+                continue
+                
+            inputs = inputs.to(device)
+            labels = labels.to(device)
+            
+            optimizer.zero_grad()
+            
+            outputs = model(inputs)
+            _, preds = torch.max(outputs.data, 1)
+            loss = criterion(outputs, labels)
+            loss.backward()
+            optimizer.step()
+            
+            running_loss += loss.item() * b
+            running_corrects += float(torch.sum(preds == labels.data))
+        
+        scheduler.step()
+        
+        used_data_sizes = (client.dataset_sizes - client.dataset_sizes % args.batch_size)
+        epoch_loss = running_loss / used_data_sizes
+        epoch_acc = running_corrects / used_data_sizes
+        
+        print(f'Loss: {epoch_loss:.4f} Acc: {epoch_acc:.4f}')
+        
+        # Save best model
+        if epoch_acc > best_acc:
+            best_acc = epoch_acc
+            best_model_path = os.path.join(save_dir, 'best_standalone_model.pth')
+            torch.save(model.state_dict(), best_model_path)
+            print(f'New best accuracy: {best_acc:.4f} - Model saved')
+
+        # Test every 10th epoch
+        if (epoch + 1) % 1 == 0:
+            print(f"\n--- Testing at epoch {epoch + 1} ---")
+            test_result = test_standalone_client(client, model, device, save_dir)
+            if test_result:
+                print(f"Test completed at epoch {epoch + 1}")
+            print("--- Resuming training ---\n")
+    
+    # Save final model
+    final_model_path = os.path.join(save_dir, 'final_standalone_model.pth')
+    torch.save(model.state_dict(), final_model_path)
+    print(f'Final standalone training completed. Best accuracy: {best_acc:.4f}')
+
+
+def standalone_training():
+    """Train each client independently on their own dataset"""
+    args = parser.parse_args()
+    print("=====Starting Standalone Training=====")
+    
+    use_cuda = torch.cuda.is_available()
+    device = torch.device("cuda" if use_cuda else "cpu")
+    
+    set_random_seed(1)
+    
+    data = Data(args.datasets, args.data_dir, args.batch_size, args.erasing_p, args.color_jitter, args.train_all)
+    data.preprocess()
+    
+    # Train each client independently
+    for cid in data.client_list:
+        print(f"\n{'='*20}")
+        print(f"Standalone training for Client {cid}")
+        print(f"{'='*20}")
+        
+        # Create a fresh client instance to get the proper classifier
+        client = Client(
+            cid, 
+            data, 
+            device, 
+            args.project_dir, 
+            f'standalone_model_{cid}', 
+            args.local_epoch, 
+            args.lr, 
+            args.batch_size, 
+            args.drop_rate, 
+            args.stride,
+            experiment_name=args.ex_name
+        )
+        
+        # Create standalone model directory
+        standalone_dir = os.path.join(args.project_dir, 'model', args.ex_name, f'client_{cid}', 'standalone')
+        os.makedirs(standalone_dir, exist_ok=True)
+        
+        # Use the client's model which already has proper setup
+        # Create a copy of the full model with classifier
+        from utils import get_model
+        standalone_model = get_model(data.train_class_sizes[cid], args.drop_rate, args.stride)
+        # Set the classifier from the client
+        standalone_model.classifier.classifier = client.classifier
+        standalone_model = standalone_model.to(device)
+        
+        # Train standalone model
+        train_standalone_client(client, standalone_model, device, args, standalone_dir)
+
+if __name__ == '__main__':
+    # train_fd()
+    standalone_training()
 
 
 
