@@ -145,44 +145,35 @@ def test_standalone_client(client, model, device, save_dir):
     model = model.to(device)
     
     # Temporarily remove classifier for feature extraction (like in federated setup)
-    original_classifier = None
-    if hasattr(model, 'classifier') and hasattr(model.classifier, 'classifier'):
-        original_classifier = model.classifier.classifier
-        model.classifier.classifier = nn.Sequential()  # Remove classifier for feature extraction
+
+    model.classifier.classifier = nn.Sequential()  # Remove classifier for feature extraction
     
-    try:
-        with torch.no_grad():
-            gallery_feature = extract_feature(model, test_loaders['gallery'], [1.0])
-            query_feature = extract_feature(model, test_loaders['query'], [1.0])
-        
-        result = {
-            'gallery_f': gallery_feature.cpu().numpy(),
-            'gallery_label': client.data.gallery_meta[client.cid]['labels'],
-            'query_f': query_feature.cpu().numpy(),
-            'query_label': client.data.query_meta[client.cid]['labels'],
-        }
-        
-        # Save .mat file
-        mat_path = os.path.join(save_dir, 'pytorch_result.mat')
-        scipy.io.savemat(mat_path, result)
-        
-        # Evaluate and save CSV results
-        output_file = os.path.join(save_dir, 'standalone_result.csv')
-        cmd = (
-            f"python evaluate.py --result_dir {save_dir} "
-            f"--dataset client_{client.cid} --output_file standalone_result.csv"
-        )
-        os.system(cmd)
-        
-        print(f"Standalone test results for client {client.cid} saved to {output_file}")
-        return True
-        
-    finally:
-        # Always restore the original classifier
-        if original_classifier is not None:
-            model.classifier.classifier = original_classifier
     
-    return False
+    with torch.no_grad():
+        gallery_feature = extract_feature(model, test_loaders['gallery'], [1.0])
+        query_feature = extract_feature(model, test_loaders['query'], [1.0])
+    
+    result = {
+        'gallery_f': gallery_feature.cpu().numpy(),
+        'gallery_label': client.data.gallery_meta[client.cid]['labels'],
+        'query_f': query_feature.cpu().numpy(),
+        'query_label': client.data.query_meta[client.cid]['labels'],
+    }
+    
+    # Save .mat file
+    mat_path = os.path.join(save_dir, 'pytorch_result.mat')
+    scipy.io.savemat(mat_path, result)
+    
+    # Evaluate and save CSV results
+    output_file = os.path.join(save_dir, 'standalone_result.csv')
+    cmd = (
+        f"python evaluate.py --result_dir {save_dir} "
+        f"--dataset client_{client.cid} --output_file standalone_result.csv"
+    )
+    os.system(cmd)
+    
+    print(f"Standalone test results for client {client.cid} saved to {output_file}")
+    return True
 
 
 def train_standalone_client(client, model, device, args, save_dir):
@@ -191,14 +182,7 @@ def train_standalone_client(client, model, device, args, save_dir):
     from torch.optim import lr_scheduler
     from utils import get_optimizer
     import time
-    
-    # Set up the model like in federated training
-    # The model should have its classifier attached for training
-    if hasattr(model, 'classifier') and hasattr(model.classifier, 'classifier'):
-        # Make sure the classifier is properly set up
-        if isinstance(model.classifier.classifier, nn.Sequential) and len(model.classifier.classifier) == 0:
-            # Need to create a proper classifier
-            model.classifier.classifier = client.classifier
+
     
     model.train()
     
@@ -206,7 +190,7 @@ def train_standalone_client(client, model, device, args, save_dir):
     scheduler = lr_scheduler.StepLR(optimizer, step_size=40, gamma=0.1)
     criterion = nn.CrossEntropyLoss()
     
-    epochs = 50  # More epochs for standalone training
+    epochs = 30  # More epochs for standalone training
     best_acc = 0.0
     
     print(f"Training standalone model for {epochs} epochs...")
@@ -286,7 +270,9 @@ def standalone_training():
         print(f"\n{'='*20}")
         print(f"Standalone training for Client {cid}")
         print(f"{'='*20}")
-        
+        if cid in ['1', '2', 'test']:
+            print(f"Skipping client {cid} as it is not a standalone client.")
+            continue
         # Create a fresh client instance to get the proper classifier
         client = Client(
             cid, 
@@ -311,7 +297,7 @@ def standalone_training():
         from utils import get_model
         standalone_model = get_model(data.train_class_sizes[cid], args.drop_rate, args.stride)
         # Set the classifier from the client
-        standalone_model.classifier.classifier = client.classifier
+        # standalone_model.classifier.classifier = client.classifier
         standalone_model = standalone_model.to(device)
         
         # Train standalone model
