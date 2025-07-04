@@ -154,7 +154,7 @@ def test_standalone_client(client, model, device, save_dir):
         query_feature = extract_feature(model, test_loaders['query'], [1.0])
 
     model.classifier.classifier = original_classifier
-    
+
     result = {
         'gallery_f': gallery_feature.cpu().numpy(),
         'gallery_label': client.data.gallery_meta[client.cid]['labels'],
@@ -241,7 +241,7 @@ def train_standalone_client(client, model, device, args, save_dir):
             print(f'New best accuracy: {best_acc:.4f} - Model saved')
 
         # Test every 10th epoch
-        if (epoch + 1) % 1 == 0:
+        if (epoch + 1) % 10 == 0:
             print(f"\n--- Testing at epoch {epoch + 1} ---")
             test_result = test_standalone_client(client, model, device, save_dir)
             if test_result:
