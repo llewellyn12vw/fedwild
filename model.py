@@ -12,6 +12,7 @@ except AttributeError:
     torch._utils._rebuild_tensor_v2 = _rebuild_tensor_v2
 
 import torch.nn as nn
+import torch.nn.functional as F
 from torch.nn import init
 from torchvision import models
 from torch.autograd import Variable
@@ -74,7 +75,7 @@ class ClassBlock(nn.Module):
             return x
 
 # Define the ResNet50-based Model
-class ft_net(nn.Module):
+class ft_net11(nn.Module):
 
     def __init__(self, class_num, droprate=0.5, stride=2):
         super(ft_net, self).__init__()
@@ -109,6 +110,65 @@ class ft_net(nn.Module):
 # Run this code with:
 python model.py
 '''
+
+import timm
+import sys
+sys.path.append('/home/wellvw12/wildlife-tools')
+from wildlife_tools.train.objective import ArcFaceLoss
+
+class ArcFaceHead(nn.Module):
+    def __init__(self, in_features, out_features, margin=0.5, scale=64):
+        super(ArcFaceHead, self).__init__()
+        self.arcface = ArcFaceLoss(
+            num_classes=out_features, 
+            embedding_size=in_features, 
+            margin=margin, 
+            scale=scale
+        )
+        self.classifier = nn.Linear(in_features, out_features)
+
+    def forward(self, features, labels=None):
+        if labels is not None:
+            return self.arcface(features, labels)
+        else:
+            return self.classifier(features)
+
+
+
+# Replace ft_net class in model.py
+# _megadescriptor
+class ft_net(nn.Module):  
+    def __init__(self, class_num, model_variant='S-224', droprate=0.5):
+        super(ft_net, self).__init__()
+
+        # Load MegaDescriptor backbone
+        model_name = f'hf-hub:BVRA/MegaDescriptor-{model_variant}'
+        self.backbone = timm.create_model('swin_large_patch4_window7_224', pretrained=True, num_classes=0)
+
+        # Get embedding dimension
+        with torch.no_grad():
+            dummy_input = torch.randn(1, 3, 224, 224)
+            embedding_dim = self.backbone(dummy_input).shape[1]
+
+        # ArcFace head for training
+        self.arcface_head = ArcFaceHead(embedding_dim, class_num)
+
+        # Feature extraction head (no classifier)
+        self.feature_head = nn.Sequential(
+            nn.BatchNorm1d(embedding_dim),
+            nn.Dropout(0.5)
+        )
+
+    def forward(self, x, labels=None):
+        # Resize input to match Swin Transformer expectations (224x224)
+        x = F.interpolate(x, size=(224, 224), mode='bilinear', align_corners=False)
+        features = self.backbone(x)
+        features = self.feature_head(features)
+
+        if labels is not None:
+            return self.arcface_head(features, labels)
+        else:
+            return features
 
 def save_model(model, class_num, save_path, device='cuda'):
     """

@@ -582,8 +582,8 @@ def create_centralized_summary(save_dir, epoch, client_list):
         print("-" * 60)
 
 if __name__ == '__main__':
-    # train_fd()
+    train_fd()
     # standalone_training()
-    centralized_training()
+    # centralized_training()
 
 

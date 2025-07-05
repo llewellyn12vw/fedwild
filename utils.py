@@ -16,12 +16,25 @@ def set_random_seed(seed):
     torch.cuda.manual_seed(seed**4)
 
 def get_optimizer(model, lr):
-    ignored_params = list(map(id, model.classifier.parameters() ))
-    base_params = filter(lambda p: id(p) not in ignored_params, model.parameters())
-    optimizer_ft = optim.SGD([
-            {'params': base_params, 'lr': 0.1*lr},
-            {'params': model.classifier.parameters(), 'lr': lr}
-        ], weight_decay=5e-4, momentum=0.9, nesterov=True)
+    # Check if model has arcface_head (MegaDescriptor) or classifier (ResNet)
+    if hasattr(model, 'arcface_head') and hasattr(model.arcface_head, 'parameters'):
+        ignored_params = list(map(id, model.arcface_head.parameters()))
+        base_params = filter(lambda p: id(p) not in ignored_params, model.parameters())
+        optimizer_ft = optim.SGD([
+                {'params': base_params, 'lr': 0.1*lr},
+                {'params': model.arcface_head.parameters(), 'lr': lr}
+            ], weight_decay=5e-4, momentum=0.9, nesterov=True)
+    elif hasattr(model, 'classifier'):
+        ignored_params = list(map(id, model.classifier.parameters()))
+        base_params = filter(lambda p: id(p) not in ignored_params, model.parameters())
+        optimizer_ft = optim.SGD([
+                {'params': base_params, 'lr': 0.1*lr},
+                {'params': model.classifier.parameters(), 'lr': lr}
+            ], weight_decay=5e-4, momentum=0.9, nesterov=True)
+    else:
+        # Fallback: optimize all parameters with same learning rate
+        optimizer_ft = optim.SGD(model.parameters(), lr=lr, weight_decay=5e-4, momentum=0.9, nesterov=True)
+    
     return optimizer_ft
 
 def save_network(network, cid, epoch_label, project_dir, name, gpu_ids):
@@ -48,10 +61,17 @@ def fliplr(img):
 
 def extract_feature(model, dataloaders, ms):
     features = torch.FloatTensor()
+    
+    # Get feature dimension dynamically from model
+    with torch.no_grad():
+        dummy_input = torch.randn(1, 3, 256, 128).cuda()
+        dummy_output = model(dummy_input)
+        feature_dim = dummy_output.shape[1]
+    
     for data in dataloaders:
         img, label = data
         n, c, h, w = img.size()
-        ff = torch.FloatTensor(n, 512).zero_().cuda()
+        ff = torch.FloatTensor(n, feature_dim).zero_().cuda()
 
         for i in range(2):
             if(i==1):
