@@ -75,16 +75,6 @@ class Data():
         # data_path = os.path.join(data_path, 'train' + self.train_all)
         
 
-        # transform_train = [
-        #         transforms.Resize((256,128), interpolation=3),
-        #         transforms.Pad(10),
-        #         transforms.RandomCrop((256,128)),
-        #         transforms.RandomHorizontalFlip(),
-        #         transforms.ToTensor(),
-        #         transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
-        #         ]
-        
-
         transform = self.data_transforms['train']
 
         # metadata = LeopardID2022('/home/wellvw12/leopard')
