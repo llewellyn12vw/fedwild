@@ -143,7 +143,7 @@ class ft_net(nn.Module):
 
         # Load MegaDescriptor backbone
         model_name = f'hf-hub:BVRA/MegaDescriptor-{model_variant}'
-        self.backbone = timm.create_model('swin_large_patch4_window7_224', pretrained=True, num_classes=0)
+        self.backbone = timm.create_model('hf-hub:BVRA/MegaDescriptor-S-224', pretrained=True, num_classes=0)
 
         # Get embedding dimension
         with torch.no_grad():
@@ -160,8 +160,7 @@ class ft_net(nn.Module):
         )
 
     def forward(self, x, labels=None):
-        # Resize input to match Swin Transformer expectations (224x224)
-        x = F.interpolate(x, size=(224, 224), mode='bilinear', align_corners=False)
+
         features = self.backbone(x)
         features = self.feature_head(features)
 

@@ -64,7 +64,7 @@ def extract_feature(model, dataloaders, ms):
     
     # Get feature dimension dynamically from model
     with torch.no_grad():
-        dummy_input = torch.randn(1, 3, 256, 128).cuda()
+        dummy_input = torch.randn(1, 3, 224, 224).cuda()
         dummy_output = model(dummy_input)
         feature_dim = dummy_output.shape[1]
     

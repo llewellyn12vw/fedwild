@@ -40,11 +40,13 @@ class Optimization():
                     distance = 1 - torch.cosine_similarity(old_features, new_features)
                     return torch.mean(distance)
 
-    def kd_generate_soft_label(self, model, data, regularization):
+    def kd_generate_soft_label(self, model, data, regularization, temperature=4.0):
         """knowledge distillation (kd): generate soft labels.
         """
         model = model.to(data.device)
         result = model(data)
         if regularization:
             result = F.normalize(result, dim=1, p=2)
+        # Apply temperature scaling for softer distributions
+        result = result / temperature
         return result

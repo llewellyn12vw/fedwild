@@ -38,7 +38,6 @@ class Client():
     def train(self, federated_model, use_cuda,round):
         self.y_err = []
         self.y_loss = []
-        print('round',round)
 
         self.model.load_state_dict(federated_model.state_dict())
         self.model.arcface_head = self.arcface_head
@@ -160,15 +159,15 @@ class Client():
         # Call evaluate.py to compute metrics and store in local_result.csv
         output_file = os.path.join(result_dir, 'local_result.csv')
         cmd = (
-            f"python {self.project_dir}/fedReID/evaluate.py --result_dir {result_dir} "
+            f"python /home/wellvw12/fedReID/evaluate.py --result_dir {result_dir} "
             f"--dataset client_{self.cid} --output_file local_result.csv"
         )
         os.system(cmd)
         print(f"Client {self.cid} local test results saved to {output_file}")
 
-    def generate_soft_label(self, x, regularization):
+    def generate_soft_label(self, x, regularization, temperature=4.0):
         self.model = self.model.to(x.device)  # Ensure model matches input device
-        return self.optimization.kd_generate_soft_label(self.model, x, regularization)
+        return self.optimization.kd_generate_soft_label(self.model, x, regularization, temperature)
 
     def get_model(self):
         return self.model

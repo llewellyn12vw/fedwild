@@ -32,7 +32,7 @@ def scale_model(model, scale):
         for name, param in dict_params.items():
             dict_params[name].set_(dict_params[name].data * scale)
     return model
-
+#[2,3,1]
 def aggregate_models(models, weights):
     """aggregate models based on weights
     params:
@@ -157,26 +157,37 @@ class Server():
             os.system('python evaluate.py --result_dir {} --dataset {} --output_file {}'.format(os.path.join(self.project_dir, 'model', self.experiment_name), dataset, 'aggregated_result.csv'))
 
 
-    def knowledge_distillation(self, regularization):
-        MSEloss = nn.MSELoss().to(self.device)
-        optimizer = optim.SGD(self.federated_model.parameters(), lr=self.lr*0.01, weight_decay=5e-4, momentum=0.9, nesterov=True)
+    def knowledge_distillation(self, regularization, temperature=3.0):
+        import torch.nn.functional as F
+        optimizer = optim.SGD(self.federated_model.parameters(), lr=self.lr, weight_decay=5e-4, momentum=0.9, nesterov=True)
         self.federated_model.train().to(self.device)
+
+        # Get feature dimension dynamically from model
+        with torch.no_grad():
+            self.federated_model.eval()
+            dummy_input = torch.randn(1, 3, 224, 224).to(self.device)
+            dummy_output = self.federated_model(dummy_input)
+            feature_dim = dummy_output.shape[1]
 
         for _, (x, target) in enumerate(self.data.kd_loader): 
             x, target = x.to(self.device), target.to(self.device)
-            # target=target.long()
             optimizer.zero_grad()
-            soft_target = torch.Tensor([[0]*512]*len(x)).to(self.device)
+            soft_target = torch.zeros(len(x), feature_dim).to(self.device)
         
             for i in self.client_list:
                 self.clients[i].model = self.clients[i].model.to(self.device)
-                i_label = (self.clients[i].generate_soft_label(x, regularization))
+                i_label = (self.clients[i].generate_soft_label(x, regularization, temperature))
                 soft_target += i_label
             soft_target /= len(self.client_list)
         
-            output = self.federated_model(x)
+            # Apply temperature scaling to student output
+            self.federated_model.train()
+            student_logits = self.federated_model(x)
+            student_soft = F.log_softmax(student_logits / temperature, dim=1)
+            teacher_soft = F.softmax(soft_target / temperature, dim=1)
             
-            loss = MSEloss(output, soft_target)
+            # Use KL divergence loss for proper knowledge distillation
+            loss = F.kl_div(student_soft, teacher_soft, reduction='batchmean') * (temperature ** 2)
             loss.backward()
             optimizer.step()
             print("train_loss_fine_tuning", loss.data)

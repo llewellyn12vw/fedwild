@@ -6,7 +6,7 @@ import json
 import torch
 from random_erasing import RandomErasing
 from wildlife_tools.data.dataset import WildlifeDataset
-from wildlife_datasets.datasets import Cows2021v2, LeopardID2022
+from wildlife_datasets.datasets import Cows2021v2, LeopardID2022, HyenaID2022
 import pandas as pd
 import torchvision.transforms as T
 
@@ -37,16 +37,16 @@ class Data():
         
     def transform(self):
         transform_train = [
-                transforms.Resize((256,128), interpolation=3),
+                transforms.Resize((224,224), interpolation=3),
                 transforms.Pad(10),
-                transforms.RandomCrop((256,128)),
+                transforms.RandomCrop((224,224)),
                 transforms.RandomHorizontalFlip(),
                 transforms.ToTensor(),
                 transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
                 ]
 
         transform_val = [
-                transforms.Resize(size=(256,128),interpolation=3),
+                transforms.Resize(size=(224,224),interpolation=3),
                 transforms.ToTensor(),
                 transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
                 ]
@@ -75,18 +75,20 @@ class Data():
         # data_path = os.path.join(data_path, 'train' + self.train_all)
         
 
-        transform_train = [
-                transforms.Resize((256,128), interpolation=3),
-                transforms.Pad(10),
-                transforms.RandomCrop((256,128)),
-                transforms.RandomHorizontalFlip(),
-                transforms.ToTensor(),
-                transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
-                ]
+        # transform_train = [
+        #         transforms.Resize((256,128), interpolation=3),
+        #         transforms.Pad(10),
+        #         transforms.RandomCrop((256,128)),
+        #         transforms.RandomHorizontalFlip(),
+        #         transforms.ToTensor(),
+        #         transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
+        #         ]
         
-        transform = transforms.Compose(transform_train)
 
-        metadata = LeopardID2022('/home/wellvw12/leopard')
+        transform = self.data_transforms['train']
+
+        # metadata = LeopardID2022('/home/wellvw12/leopard')
+        metadata = HyenaID2022('/home/wellvw12/hyenaid2022')
         df = pd.read_csv(data_path)
         image_dataset = WildlifeDataset(df,metadata.root, transform=transform)
 
@@ -126,15 +128,13 @@ class Data():
         self.gallery_meta = {}
         self.query_meta = {}
 
-        transform = transforms.Compose([
-            transforms.Resize((256, 128), interpolation=3),
-            transforms.ToTensor(),
-            transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
-        ])
+        transform = self.data_transforms['val']
 
         for test_dir in self.datasets:
 
-            metadata = LeopardID2022('/home/wellvw12/leopard')
+            # metadata = LeopardID2022('/home/wellvw12/leopard')
+            metadata = HyenaID2022('/home/wellvw12/hyenaid2022')
+
             # df = pd.read_csv(f'{self.data_dir}/{test_dir}/test.csv')          
             query = pd.read_csv(f'{self.data_dir}/{test_dir}/query.csv')
             gallery = pd.read_csv(f'{self.data_dir}/{test_dir}/gallery.csv')
@@ -172,7 +172,7 @@ class Data():
             }
 
     def preprocess(self):
-        # self.transform()
+        self.transform()
         self.preprocess_train()
         self.preprocess_test()
         self.preprocess_kd_data('kd')
