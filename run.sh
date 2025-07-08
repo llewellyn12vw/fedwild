@@ -3,12 +3,10 @@
 # Run the commands sequentially
 # python main.py --model_name ex2_110
 
-python main.py --ex_name exRegHyena && \
+python main.py --ex_name exReghyn
 # python main.py --kd --regularization --model_name exKD && \
-python main.py --cdw --kd --regularization --ex_name exKD_CDW_Hyena
+# python main.py --cdw --kd --regularization --ex_name exKD_CDW_Lep
 # python main.py --kd --regularization --model_name ex2_110_kd && \
 # python main.py --cdw --model_name ex2_110_cdw
 
 
-
-gsutil -m cp -r /home/wellvw12/leopard gs://leopard567wild/

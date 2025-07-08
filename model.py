@@ -75,7 +75,7 @@ class ClassBlock(nn.Module):
             return x
 
 # Define the ResNet50-based Model
-class ft_net11(nn.Module):
+class ft_net(nn.Module):
 
     def __init__(self, class_num, droprate=0.5, stride=2):
         super(ft_net, self).__init__()
@@ -137,13 +137,13 @@ class ArcFaceHead(nn.Module):
 
 # Replace ft_net class in model.py
 # _megadescriptor
-class ft_net(nn.Module):  
+class megadescriptor(nn.Module):  
     def __init__(self, class_num, model_variant='S-224', droprate=0.5):
-        super(ft_net, self).__init__()
+        super(megadescriptor, self).__init__()
 
         # Load MegaDescriptor backbone
         model_name = f'hf-hub:BVRA/MegaDescriptor-{model_variant}'
-        self.backbone = timm.create_model('hf-hub:BVRA/MegaDescriptor-S-224', pretrained=True, num_classes=0)
+        self.backbone = timm.create_model('hf-hub:BVRA/MegaDescriptor-S-224', pretrained=False, num_classes=0)
 
         # Get embedding dimension
         with torch.no_grad():

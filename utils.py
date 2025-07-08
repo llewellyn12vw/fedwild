@@ -21,14 +21,14 @@ def get_optimizer(model, lr):
         ignored_params = list(map(id, model.arcface_head.parameters()))
         base_params = filter(lambda p: id(p) not in ignored_params, model.parameters())
         optimizer_ft = optim.SGD([
-                {'params': base_params, 'lr': 0.1*lr},
+                {'params': base_params, 'lr': lr},
                 {'params': model.arcface_head.parameters(), 'lr': lr}
             ], weight_decay=5e-4, momentum=0.9, nesterov=True)
     elif hasattr(model, 'classifier'):
         ignored_params = list(map(id, model.classifier.parameters()))
         base_params = filter(lambda p: id(p) not in ignored_params, model.parameters())
         optimizer_ft = optim.SGD([
-                {'params': base_params, 'lr': 0.1*lr},
+                {'params': base_params, 'lr': lr},
                 {'params': model.classifier.parameters(), 'lr': lr}
             ], weight_decay=5e-4, momentum=0.9, nesterov=True)
     else:
@@ -47,8 +47,14 @@ def save_network(network, cid, epoch_label, project_dir, name, gpu_ids):
     if torch.cuda.is_available():
         network.cuda(gpu_ids[0])
 
-def get_model(class_sizes, drop_rate, stride):
-    model = ft_net(class_sizes, drop_rate, stride)
+def get_model(class_sizes, drop_rate, stride, model_type='resnet18_ft_net'):
+    if model_type == 'resnet18_ft_net':
+        model = ft_net(class_sizes, drop_rate, stride)
+    elif model_type == 'megadescriptor':
+        from model import megadescriptor
+        model = megadescriptor(class_sizes, drop_rate, stride)
+    else:
+        raise ValueError(f"Unknown model type: {model_type}")
     return model
 
 # functions for testing federated model

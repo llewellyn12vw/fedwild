@@ -35,17 +35,18 @@ parser.add_argument('--ex_name',default='experimentX', type=str, help='output re
 parser.add_argument('--project_dir',default='.', type=str, help='project path')
 parser.add_argument('--data_dir',default='/home/wellvw12/hyena_4/clients',type=str, help='training dir path')
 # parser.add_argument('--datasets',default='Market,DukeMTMC-reID,cuhk03-np-detected,cuhk01,MSMT17,viper,prid,3dpes,ilids',type=str, help='datasets used')
-parser.add_argument('--datasets',default='1,2,3,4,5,test',type=str, help='datasets used')
+parser.add_argument('--datasets',default='1,2,3,4,test',type=str, help='datasets used')
 parser.add_argument('--train_all', action='store_true', help='use all training data' )
 parser.add_argument('--stride', default=2, type=int, help='stride')
 # arguments for model LEARNING rate reduced by factor of 10 in client training and 
-parser.add_argument('--lr', default=0.01, type=float, help='learning rate')
+parser.add_argument('--lr', default=0.001, type=float, help='learning rate')
 parser.add_argument('--drop_rate', default=0.5, type=float, help='drop rate')
+parser.add_argument('--model', default='resnet18_ft_net', type=str, help='model name')
 
 # arguments for federated setting
 parser.add_argument('--local_epoch', default=1, type=int, help='number of local epochs')
 parser.add_argument('--batch_size', default=32, type=int, help='batch size')
-parser.add_argument('--num_of_clients', default=1, type=int, help='number of clients')
+parser.add_argument('--num_of_clients', default=3, type=int, help='number of clients')
 
 # arguments for data transformation
 parser.add_argument('--erasing_p', default=0, type=float, help='Random Erasing probability, in [0,1]')
@@ -88,7 +89,8 @@ def train_fd():
             args.batch_size, 
             args.drop_rate, 
             args.stride,
-            experiment_name=args.ex_name)
+            args.ex_name,
+            args.model)
 
     server = Server(
         clients, 
@@ -101,7 +103,8 @@ def train_fd():
         args.drop_rate, 
         args.stride, 
         args.multiple_scale,
-        experiment_name=args.ex_name)
+        args.ex_name,
+        args.model)
 
     dir_name = os.path.join(args.project_dir, 'model', args.ex_name)
     os.makedirs(dir_name, exist_ok=True)  # Creates parent dirs if needed
@@ -116,8 +119,8 @@ def train_fd():
         server.train(i, args.cdw, use_cuda,i)
         save_path = os.path.join(dir_name, 'federated_model.pth')
         torch.save(server.federated_model.cpu().state_dict(), save_path)
-        if i==0:
-            server.test(use_cuda)
+        # if i==0:
+        #     server.test(use_cuda)
         if (i+1)%10 == 0:
             if args.kd:
                 server.knowledge_distillation(args.regularization)
@@ -298,7 +301,7 @@ def standalone_training():
         # Use the client's model which already has proper setup
         # Create a copy of the full model with classifier
         from utils import get_model
-        standalone_model = get_model(data.train_class_sizes[cid], args.drop_rate, args.stride)
+        standalone_model = get_model(data.train_class_sizes[cid], args.drop_rate, args.stride, args.model)
         # Set the classifier from the client
         # standalone_model.classifier.classifier = client.classifier
         standalone_model = standalone_model.to(device)
@@ -330,7 +333,7 @@ def centralized_training():
     
     # Create centralized model
     from utils import get_model
-    centralized_model = get_model(total_classes, args.drop_rate, args.stride)
+    centralized_model = get_model(total_classes, args.drop_rate, args.stride, args.model)
     centralized_model = centralized_model.to(device)
     
     # Create combined data loader

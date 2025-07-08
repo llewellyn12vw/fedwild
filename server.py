@@ -52,7 +52,7 @@ def aggregate_models(models, weights):
 
 
 class Server():
-    def __init__(self, clients, data, device, project_dir, model_name, num_of_clients, lr, drop_rate, stride, multiple_scale,experiment_name='experimentX'):
+    def __init__(self, clients, data, device, project_dir, model_name, num_of_clients, lr, drop_rate, stride, multiple_scale,experiment_name,model):
         self.project_dir = project_dir
         self.data = data
         self.device = device
@@ -65,13 +65,20 @@ class Server():
         self.drop_rate = drop_rate
         self.stride = stride
         self.experiment_name = experiment_name
+        self.model = model
 
         self.multiple_scale = []
         for s in multiple_scale.split(','):
             self.multiple_scale.append(math.sqrt(float(s)))
 
-        self.full_model = get_model(750, drop_rate, stride).to(device)
-        self.full_model.arcface_head = nn.Sequential()
+        self.full_model = get_model(750, drop_rate, stride, model).to(device)
+        
+        # Handle different model types
+        if model == 'megadescriptor':
+            self.full_model.arcface_head = nn.Sequential()
+        else:  # resnet18_ft_net
+            self.full_model.classifier = nn.Sequential()
+            
         self.federated_model=self.full_model
         self.federated_model.eval()
         self.train_loss = []
@@ -174,17 +181,40 @@ class Server():
             optimizer.zero_grad()
             soft_target = torch.zeros(len(x), feature_dim).to(self.device)
         
+            # Generate soft labels from client models
             for i in self.client_list:
                 self.clients[i].model = self.clients[i].model.to(self.device)
+                
+                # Restore client-specific head for soft label generation
+                if self.model == 'megadescriptor':
+                    self.clients[i].model.arcface_head = self.clients[i].arcface_head
+                else:  # resnet18_ft_net
+                    self.clients[i].model.classifier = self.clients[i].classifier
+                
                 i_label = (self.clients[i].generate_soft_label(x, regularization, temperature))
                 soft_target += i_label
+                
+                # Remove head after generation
+                if self.model == 'megadescriptor':
+                    self.clients[i].model.arcface_head = nn.Sequential()
+                else:  # resnet18_ft_net
+                    self.clients[i].model.classifier = nn.Sequential()
+                    
             soft_target /= len(self.client_list)
         
-            # Apply temperature scaling to student output
+            # Generate student output based on model type
             self.federated_model.train()
-            student_logits = self.federated_model(x)
-            student_soft = F.log_softmax(student_logits / temperature, dim=1)
-            teacher_soft = F.softmax(soft_target / temperature, dim=1)
+            if self.model == 'megadescriptor':
+                # For MegaDescriptor, use feature-level distillation
+                student_features = self.federated_model(x)
+                # Apply temperature scaling to feature similarity
+                student_soft = F.log_softmax(student_features / temperature, dim=1)
+                teacher_soft = F.softmax(soft_target / temperature, dim=1)
+            else:  # resnet18_ft_net
+                # For ResNet, can use logit-level distillation if needed
+                student_logits = self.federated_model(x)
+                student_soft = F.log_softmax(student_logits / temperature, dim=1)
+                teacher_soft = F.softmax(soft_target / temperature, dim=1)
             
             # Use KL divergence loss for proper knowledge distillation
             loss = F.kl_div(student_soft, teacher_soft, reduction='batchmean') * (temperature ** 2)

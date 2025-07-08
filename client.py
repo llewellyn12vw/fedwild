@@ -12,40 +12,69 @@ import scipy.io
 import numpy as np
 
 class Client():
-    def __init__(self, cid, data, device, project_dir, model_name, local_epoch, lr, batch_size, drop_rate, stride, experiment_name='experimentX'):
+    def __init__(self, cid, data, device, project_dir, model_name, local_epoch, lr, batch_size, drop_rate, stride, experiment_name, model):
         self.cid = cid
         self.project_dir = project_dir
         self.model_name = model_name
         self.data = data
         self.device = device
         self.local_epoch = local_epoch
-        self.lr = lr
+        self.initial_lr = lr
+        self.current_lr = lr
         self.batch_size = batch_size
-        
+        self.model = model
         self.dataset_sizes = self.data.train_dataset_sizes[cid]
         self.train_loader = self.data.train_loaders[cid]
 
-        self.full_model = get_model(self.data.train_class_sizes[cid], drop_rate, stride)
-        # For MegaDescriptor, store the ArcFace head instead of classifier
-        self.arcface_head = self.full_model.arcface_head
-        self.full_model.arcface_head = nn.Sequential()  # Remove for federated aggregation
+        self.full_model = get_model(self.data.train_class_sizes[cid], drop_rate, stride, model)
+        self.model_type = model
+        
+        # Handle different model types
+        if model == 'megadescriptor':
+            # For MegaDescriptor, store the ArcFace head instead of classifier
+            self.arcface_head = self.full_model.arcface_head
+            self.full_model.arcface_head = nn.Sequential()  # Remove for federated aggregation
+            self.classifier = None
+        else:  # resnet18_ft_net
+            # For ResNet, store the classifier
+            self.classifier = self.full_model.classifier
+            self.full_model.classifier = nn.Sequential()  # Remove for federated aggregation
+            self.arcface_head = None
+            
         self.model = self.full_model
         self.distance=0
         self.optimization = Optimization(self.train_loader, self.device)
         self.experiment_name = experiment_name
         # print("class name size",class_names_size[cid])
 
+    def update_learning_rate(self, round_num):
+        """Reduce learning rate by 1/50 every round"""
+        self.current_lr = self.initial_lr * (0.98 ** round_num)
+        if round_num % 10 == 0:  # Print every 10 rounds
+            print(f"Client {self.cid}, Round {round_num}: LR = {self.current_lr:.8f}")
+
     def train(self, federated_model, use_cuda,round):
         self.y_err = []
         self.y_loss = []
 
+        # Update learning rate based on round number
+        # self.update_learning_rate(round)
         self.model.load_state_dict(federated_model.state_dict())
-        self.model.arcface_head = self.arcface_head
-        self.old_arcface_head = copy.deepcopy(self.arcface_head)
+        
+        # Restore model-specific head
+        if self.model_type == 'megadescriptor':
+            self.model.arcface_head = self.arcface_head
+            self.old_arcface_head = copy.deepcopy(self.arcface_head)
+        else:  # resnet18_ft_net
+            self.model.classifier = self.classifier
+            self.old_classifier = copy.deepcopy(self.classifier)
+            
         self.model = self.model.to(self.device)
 
-        optimizer = get_optimizer(self.model, self.lr)
-        scheduler = lr_scheduler.StepLR(optimizer, step_size=40, gamma=0.1)
+        optimizer = get_optimizer(self.model, self.current_lr)
+        # scheduler = lr_scheduler.StepLR(optimizer, step_size=25, gamma=0.1)
+        # scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=100, eta_min=1e-6)
+
         
         # ArcFace loss is computed within the model forward pass
 
@@ -74,21 +103,31 @@ class Client():
                 
                 optimizer.zero_grad()
 
-                # Forward pass with ArcFace loss
-                loss = self.model(inputs, labels)
-                
-                # For accuracy computation, get features and compute similarity-based predictions
-                with torch.no_grad():
-                    features = self.model(inputs)  # Get embeddings without labels
-                    # Simple nearest neighbor in feature space for accuracy estimation
-                    preds = self._compute_predictions(features, labels)
+                # Forward pass based on model type
+                if self.model_type == 'megadescriptor':
+                    # ArcFace loss computed within the model
+                    loss = self.model(inputs, labels)
+                    
+                    # For accuracy computation, get features and compute similarity-based predictions
+                    with torch.no_grad():
+                        features = self.model(inputs)  # Get embeddings without labels
+                        preds = self._compute_predictions(features, labels)
+                else:  # resnet18_ft_net
+                    # Standard CrossEntropy loss
+                    outputs = self.model(inputs)
+                    criterion = nn.CrossEntropyLoss()
+                    loss = criterion(outputs, labels)
+                    
+                    # Standard predictions
+                    _, preds = torch.max(outputs.data, 1)
                 
                 loss.backward()
                 optimizer.step()
 
                 running_loss += loss.item() * b
                 running_corrects += float(torch.sum(preds == labels.data))
-            scheduler.step()
+
+            # scheduler.step()
             used_data_sizes = (self.dataset_sizes - self.dataset_sizes % self.batch_size)
             epoch_loss = running_loss / used_data_sizes
             epoch_acc = running_corrects / used_data_sizes
@@ -109,9 +148,15 @@ class Client():
         
         # save_network(self.model, self.cid, 'last', self.project_dir, self.model_name, gpu_ids)
         
-        self.arcface_head = self.model.arcface_head
-        self.distance = self.optimization.cdw_feature_distance(federated_model, self.old_arcface_head, self.model)
-        self.model.arcface_head = nn.Sequential()  # Remove for federated aggregation
+        # Handle model-specific cleanup
+        if self.model_type == 'megadescriptor':
+            self.arcface_head = self.model.arcface_head
+            self.distance = self.optimization.cdw_feature_distance(federated_model, self.old_arcface_head, self.model)
+            self.model.arcface_head = nn.Sequential()  # Remove for federated aggregation
+        else:  # resnet18_ft_net
+            self.classifier = self.model.classifier
+            self.distance = self.optimization.cdw_feature_distance(federated_model, self.old_classifier, self.model)
+            self.model.classifier = nn.Sequential()  # Remove for federated aggregation
 
         if round == 0 or (round+1)%10 == 0:
             print("Round 1: Client", self.cid, "local model trained, distance:", self.distance)
@@ -159,7 +204,7 @@ class Client():
         # Call evaluate.py to compute metrics and store in local_result.csv
         output_file = os.path.join(result_dir, 'local_result.csv')
         cmd = (
-            f"python /home/wellvw12/fedReID/evaluate.py --result_dir {result_dir} "
+            f"python evaluate.py --result_dir {result_dir} "
             f"--dataset client_{self.cid} --output_file local_result.csv"
         )
         os.system(cmd)
