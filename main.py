@@ -66,7 +66,8 @@ parser.add_argument('--regularization', action='store_true', help='use regulariz
 # arguments for cosine annealing learning rate scheduling
 parser.add_argument('--cosine_annealing', action='store_true', help='use cosine annealing learning rate scheduling, default false' )
 parser.add_argument('--total_rounds', default=100, type=int, help='total number of federated rounds for cosine annealing')
-parser.add_argument('--eta_min', default=1e-6, type=float, help='minimum learning rate for cosine annealing')
+parser.add_argument('--eta_min', default=1e-5, type=float, help='minimum learning rate for cosine annealing')
+parser.add_argument('--kd_lr_ratio', default=0.05, type=float, help='knowledge distillation learning rate as ratio of client LR')
 
 
 def train_fd():
@@ -112,7 +113,8 @@ def train_fd():
         args.stride, 
         args.multiple_scale,
         args.ex_name,
-        args.model)
+        args.model,
+        args.kd_lr_ratio)
 
     dir_name = os.path.join(args.project_dir, 'model', args.ex_name)
     os.makedirs(dir_name, exist_ok=True)  # Creates parent dirs if needed

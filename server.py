@@ -52,7 +52,7 @@ def aggregate_models(models, weights):
 
 
 class Server():
-    def __init__(self, clients, data, device, project_dir, model_name, num_of_clients, lr, drop_rate, stride, multiple_scale,experiment_name,model):
+    def __init__(self, clients, data, device, project_dir, model_name, num_of_clients, lr, drop_rate, stride, multiple_scale,experiment_name,model, kd_lr_ratio=0.05):
         self.project_dir = project_dir
         self.data = data
         self.device = device
@@ -61,7 +61,7 @@ class Server():
         self.client_list = self.data.client_list
         self.num_of_clients = num_of_clients
         self.lr = lr
-        self.initial_kd_lr = lr * 0.1  # Initial KD learning rate
+        self.initial_kd_lr = lr * kd_lr_ratio  # Initial KD learning rate as ratio of client LR
         self.current_kd_lr = self.initial_kd_lr
         self.multiple_scale = multiple_scale
         self.drop_rate = drop_rate
