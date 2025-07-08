@@ -63,6 +63,11 @@ parser.add_argument('--cdw', action='store_true', help='use cosine distance weig
 parser.add_argument('--kd', action='store_true', help='apply knowledge distillation, default false' )
 parser.add_argument('--regularization', action='store_true', help='use regularization during distillation, default false' )
 
+# arguments for cosine annealing learning rate scheduling
+parser.add_argument('--cosine_annealing', action='store_true', help='use cosine annealing learning rate scheduling, default false' )
+parser.add_argument('--total_rounds', default=100, type=int, help='total number of federated rounds for cosine annealing')
+parser.add_argument('--eta_min', default=1e-6, type=float, help='minimum learning rate for cosine annealing')
+
 
 def train_fd():
     args = parser.parse_args()
@@ -90,7 +95,10 @@ def train_fd():
             args.drop_rate, 
             args.stride,
             args.ex_name,
-            args.model)
+            args.model,
+            args.cosine_annealing,
+            args.total_rounds,
+            args.eta_min)
 
     server = Server(
         clients, 
@@ -111,7 +119,7 @@ def train_fd():
 
     print("=====training start!========")
     
-    rounds = 100
+    rounds = args.total_rounds
     for i in range(rounds):
         print('='*10)
         print("Round Number {}".format(i))
@@ -119,11 +127,11 @@ def train_fd():
         server.train(i, args.cdw, use_cuda,i)
         save_path = os.path.join(dir_name, 'federated_model.pth')
         torch.save(server.federated_model.cpu().state_dict(), save_path)
-        # if i==0:
-        #     server.test(use_cuda)
+        if i==0:
+            server.test(use_cuda)
         if (i+1)%10 == 0:
             if args.kd:
-                server.knowledge_distillation(args.regularization)
+                server.knowledge_distillation(args.regularization,i+1)
             server.test(use_cuda)
         server.draw_curve()
 

@@ -61,6 +61,8 @@ class Server():
         self.client_list = self.data.client_list
         self.num_of_clients = num_of_clients
         self.lr = lr
+        self.initial_kd_lr = lr * 0.1  # Initial KD learning rate
+        self.current_kd_lr = self.initial_kd_lr
         self.multiple_scale = multiple_scale
         self.drop_rate = drop_rate
         self.stride = stride
@@ -116,6 +118,12 @@ class Server():
             weights = cos_distance_weights
 
         self.federated_model = aggregate_models(models, weights)
+        
+    def update_kd_learning_rate(self, round_num, decay_factor=0.95):
+        """Update knowledge distillation learning rate with exponential decay"""
+        self.current_kd_lr = self.initial_kd_lr * (decay_factor ** round_num)
+        if round_num % 10 == 0:  # Print every 10 rounds
+            print(f"Server KD LR update - Round {round_num}: KD LR = {self.current_kd_lr:.8f}")
 
     def draw_curve(self):
         plt.figure()
@@ -164,9 +172,9 @@ class Server():
             os.system('python evaluate.py --result_dir {} --dataset {} --output_file {}'.format(os.path.join(self.project_dir, 'model', self.experiment_name), dataset, 'aggregated_result.csv'))
 
 
-    def knowledge_distillation(self, regularization, temperature=3.0):
+    def knowledge_distillation(self, regularization, temperature=2.0, round = 0):
         import torch.nn.functional as F
-        optimizer = optim.SGD(self.federated_model.parameters(), lr=self.lr, weight_decay=5e-4, momentum=0.9, nesterov=True)
+        optimizer = optim.SGD(self.federated_model.parameters(), lr=self.current_kd_lr, weight_decay=5e-4, momentum=0.9, nesterov=True)
         self.federated_model.train().to(self.device)
 
         # Get feature dimension dynamically from model
@@ -185,39 +193,29 @@ class Server():
             for i in self.client_list:
                 self.clients[i].model = self.clients[i].model.to(self.device)
                 
-                # Restore client-specific head for soft label generation
-                if self.model == 'megadescriptor':
-                    self.clients[i].model.arcface_head = self.clients[i].arcface_head
-                else:  # resnet18_ft_net
-                    self.clients[i].model.classifier = self.clients[i].classifier
+                # Keep heads removed for feature-level distillation
+                # The models should already have heads removed from previous operations
                 
                 i_label = (self.clients[i].generate_soft_label(x, regularization, temperature))
                 soft_target += i_label
-                
-                # Remove head after generation
-                if self.model == 'megadescriptor':
-                    self.clients[i].model.arcface_head = nn.Sequential()
-                else:  # resnet18_ft_net
-                    self.clients[i].model.classifier = nn.Sequential()
                     
             soft_target /= len(self.client_list)
         
             # Generate student output based on model type
             self.federated_model.train()
-            if self.model == 'megadescriptor':
-                # For MegaDescriptor, use feature-level distillation
-                student_features = self.federated_model(x)
-                # Apply temperature scaling to feature similarity
-                student_soft = F.log_softmax(student_features / temperature, dim=1)
-                teacher_soft = F.softmax(soft_target / temperature, dim=1)
-            else:  # resnet18_ft_net
-                # For ResNet, can use logit-level distillation if needed
-                student_logits = self.federated_model(x)
-                student_soft = F.log_softmax(student_logits / temperature, dim=1)
-                teacher_soft = F.softmax(soft_target / temperature, dim=1)
+
+            student_features = self.federated_model(x)
+            student_soft = F.log_softmax(student_features / temperature, dim=1)
+            teacher_soft = F.softmax(soft_target / temperature, dim=1)
+            # else:  # resnet18_ft_net
+            #     # For ResNet, can use logit-level distillation if needed
+            #     student_logits = self.federated_model(x)
+            #     student_soft = F.log_softmax(student_logits / temperature, dim=1)
+            #     teacher_soft = F.softmax(soft_target / temperature, dim=1)
             
             # Use KL divergence loss for proper knowledge distillation
             loss = F.kl_div(student_soft, teacher_soft, reduction='batchmean') * (temperature ** 2)
             loss.backward()
             optimizer.step()
+            self.update_kd_learning_rate(round)
             print("train_loss_fine_tuning", loss.data)

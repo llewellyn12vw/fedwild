@@ -10,9 +10,10 @@ from optimization import Optimization
 import os
 import scipy.io
 import numpy as np
+import math
 
 class Client():
-    def __init__(self, cid, data, device, project_dir, model_name, local_epoch, lr, batch_size, drop_rate, stride, experiment_name, model):
+    def __init__(self, cid, data, device, project_dir, model_name, local_epoch, lr, batch_size, drop_rate, stride, experiment_name, model, cosine_annealing=False, total_rounds=100, eta_min=1e-6):
         self.cid = cid
         self.project_dir = project_dir
         self.model_name = model_name
@@ -25,6 +26,9 @@ class Client():
         self.model = model
         self.dataset_sizes = self.data.train_dataset_sizes[cid]
         self.train_loader = self.data.train_loaders[cid]
+        self.cosine_annealing = cosine_annealing
+        self.total_rounds = total_rounds
+        self.eta_min = eta_min
 
         self.full_model = get_model(self.data.train_class_sizes[cid], drop_rate, stride, model)
         self.model_type = model
@@ -48,8 +52,15 @@ class Client():
         # print("class name size",class_names_size[cid])
 
     def update_learning_rate(self, round_num):
-        """Reduce learning rate by 1/50 every round"""
-        self.current_lr = self.initial_lr * (0.98 ** round_num)
+        """Update learning rate based on scheduling strategy"""
+        if self.cosine_annealing:
+            # Cosine annealing scheduling
+            self.current_lr = self.eta_min + (self.initial_lr - self.eta_min) * \
+                (1 + math.cos(math.pi * round_num / self.total_rounds)) / 2
+        else:
+            # Original exponential decay
+            self.current_lr = self.initial_lr * (0.98 ** round_num)
+        
         if round_num % 10 == 0:  # Print every 10 rounds
             print(f"Client {self.cid}, Round {round_num}: LR = {self.current_lr:.8f}")
 
@@ -58,7 +69,7 @@ class Client():
         self.y_loss = []
 
         # Update learning rate based on round number
-        # self.update_learning_rate(round)
+        self.update_learning_rate(round)
         self.model.load_state_dict(federated_model.state_dict())
         
         # Restore model-specific head
