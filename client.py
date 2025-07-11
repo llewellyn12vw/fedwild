@@ -13,7 +13,7 @@ import numpy as np
 import math
 
 class Client():
-    def __init__(self, cid, data, device, project_dir, model_name, local_epoch, lr, batch_size, drop_rate, stride, experiment_name, model, cosine_annealing=False, total_rounds=100, eta_min=1e-6):
+    def __init__(self, cid, data, device, project_dir, model_name, local_epoch, lr, batch_size, drop_rate, stride, experiment_name, model, cosine_annealing=True, total_rounds=100, eta_min=1e-6):
         self.cid = cid
         self.project_dir = project_dir
         self.model_name = model_name
@@ -33,22 +33,20 @@ class Client():
         self.full_model = get_model(self.data.train_class_sizes[cid], drop_rate, stride, model)
         self.model_type = model
         
-        # Handle different model types
-        if model == 'megadescriptor':
-            # For MegaDescriptor, store the ArcFace head instead of classifier
-            self.arcface_head = self.full_model.arcface_head
-            self.full_model.arcface_head = nn.Sequential()  # Remove for federated aggregation
-            self.classifier = None
-        else:  # resnet18_ft_net
-            # For ResNet, store the classifier
-            self.classifier = self.full_model.classifier
-            self.full_model.classifier = nn.Sequential()  # Remove for federated aggregation
-            self.arcface_head = None
+        # Store the classifier and remove for federated aggregation
+        self.classifier = self.full_model.classifier
+        self.full_model.classifier = nn.Sequential()  # Remove for federated aggregation
             
         self.model = self.full_model
         self.distance=0
         self.optimization = Optimization(self.train_loader, self.device)
         self.experiment_name = experiment_name
+        
+        # FedGKD-specific parameters
+        self.fedgkd_enabled = False
+        self.fedgkd_ensemble_teacher = None
+        self.fedgkd_distillation_coeff = 0.1
+        self.fedgkd_temperature = 1.0
         # print("class name size",class_names_size[cid])
 
     def update_learning_rate(self, round_num):
@@ -63,6 +61,48 @@ class Client():
         
         if round_num % 10 == 0:  # Print every 10 rounds
             print(f"Client {self.cid}, Round {round_num}: LR = {self.current_lr:.8f}")
+    
+    def receive_fedgkd_teacher(self, ensemble_teacher, distillation_coeff, temperature):
+        """Receive ensemble teacher model from server for FedGKD"""
+        self.fedgkd_enabled = True
+        self.fedgkd_ensemble_teacher = copy.deepcopy(ensemble_teacher)
+        self.fedgkd_distillation_coeff = distillation_coeff
+        self.fedgkd_temperature = temperature
+        print(f"Client {self.cid} received FedGKD ensemble teacher with coeff={distillation_coeff}, temp={temperature}")
+    
+    def compute_fedgkd_distillation_loss(self, student_output, inputs):
+        """Compute FedGKD distillation loss using feature-level distillation"""
+        if not self.fedgkd_enabled or self.fedgkd_ensemble_teacher is None:
+            return 0.0
+            
+        # Get teacher features (teacher should already have classifier removed)
+        self.fedgkd_ensemble_teacher.eval()
+        self.fedgkd_ensemble_teacher = self.fedgkd_ensemble_teacher.to(self.device)
+        
+        with torch.no_grad():
+            teacher_features = self.fedgkd_ensemble_teacher(inputs)
+        
+        # For ResNet, if student_output is logits, we need to get features
+        if student_output.shape[1] != teacher_features.shape[1]:
+            # Get features by running input through model without classifier
+            # We need to maintain gradients, so don't use torch.no_grad()
+            original_classifier = self.model.classifier
+            self.model.classifier = nn.Sequential()
+            student_features = self.model(inputs)
+            self.model.classifier = original_classifier
+        else:
+            student_features = student_output
+        
+        # Ensure both have same dimensions
+        if student_features.shape != teacher_features.shape:
+            print(f"Warning: Feature dimension mismatch - Student: {student_features.shape}, Teacher: {teacher_features.shape}")
+            return torch.tensor(0.0, device=self.device, requires_grad=True)
+        
+        # Use MSE loss for feature-level distillation (more stable than KL for features)
+        mse_loss = F.mse_loss(student_features, teacher_features)
+        distillation_loss = mse_loss * self.fedgkd_distillation_coeff
+        
+        return distillation_loss
 
     def train(self, federated_model, use_cuda,round):
         self.y_err = []
@@ -72,13 +112,9 @@ class Client():
         self.update_learning_rate(round)
         self.model.load_state_dict(federated_model.state_dict())
         
-        # Restore model-specific head
-        if self.model_type == 'megadescriptor':
-            self.model.arcface_head = self.arcface_head
-            self.old_arcface_head = copy.deepcopy(self.arcface_head)
-        else:  # resnet18_ft_net
-            self.model.classifier = self.classifier
-            self.old_classifier = copy.deepcopy(self.classifier)
+        # Restore classifier
+        self.model.classifier = self.classifier
+        self.old_classifier = copy.deepcopy(self.classifier)
             
         self.model = self.model.to(self.device)
 
@@ -114,23 +150,18 @@ class Client():
                 
                 optimizer.zero_grad()
 
-                # Forward pass based on model type
-                if self.model_type == 'megadescriptor':
-                    # ArcFace loss computed within the model
-                    loss = self.model(inputs, labels)
-                    
-                    # For accuracy computation, get features and compute similarity-based predictions
-                    with torch.no_grad():
-                        features = self.model(inputs)  # Get embeddings without labels
-                        preds = self._compute_predictions(features, labels)
-                else:  # resnet18_ft_net
-                    # Standard CrossEntropy loss
-                    outputs = self.model(inputs)
-                    criterion = nn.CrossEntropyLoss()
-                    loss = criterion(outputs, labels)
-                    
-                    # Standard predictions
-                    _, preds = torch.max(outputs.data, 1)
+                # Forward pass - Standard CrossEntropy loss
+                outputs = self.model(inputs)
+                criterion = nn.CrossEntropyLoss()
+                loss = criterion(outputs, labels)
+                
+                # FedGKD distillation loss
+                if self.fedgkd_enabled:
+                    fedgkd_loss = self.compute_fedgkd_distillation_loss(outputs, inputs)
+                    loss += fedgkd_loss
+                
+                # Standard predictions
+                _, preds = torch.max(outputs.data, 1)
                 
                 loss.backward()
                 optimizer.step()
@@ -159,15 +190,10 @@ class Client():
         
         # save_network(self.model, self.cid, 'last', self.project_dir, self.model_name, gpu_ids)
         
-        # Handle model-specific cleanup
-        if self.model_type == 'megadescriptor':
-            self.arcface_head = self.model.arcface_head
-            self.distance = self.optimization.cdw_feature_distance(federated_model, self.old_arcface_head, self.model)
-            self.model.arcface_head = nn.Sequential()  # Remove for federated aggregation
-        else:  # resnet18_ft_net
-            self.classifier = self.model.classifier
-            self.distance = self.optimization.cdw_feature_distance(federated_model, self.old_classifier, self.model)
-            self.model.classifier = nn.Sequential()  # Remove for federated aggregation
+        # Store classifier and remove for federated aggregation
+        self.classifier = self.model.classifier
+        self.distance = self.optimization.cdw_feature_distance(federated_model, self.old_classifier, self.model)
+        self.model.classifier = nn.Sequential()  # Remove for federated aggregation
 
         if round == 0 or (round+1)%10 == 0:
             print("Round 1: Client", self.cid, "local model trained, distance:", self.distance)
@@ -236,21 +262,3 @@ class Client():
 
     def get_cos_distance_weight(self):
         return self.distance
-    
-    def _compute_predictions(self, features, labels):
-        """
-        Compute predictions for ArcFace training by using cosine similarity.
-        This provides a rough accuracy estimate during training.
-        """
-        # Normalize features
-        features = F.normalize(features, p=2, dim=1)
-        
-        # Compute cosine similarity matrix
-        similarity_matrix = torch.mm(features, features.t())
-        
-        # Get the most similar sample (excluding self)
-        similarity_matrix.fill_diagonal_(-float('inf'))
-        _, indices = torch.max(similarity_matrix, dim=1)
-        
-        # Return predicted labels based on most similar samples
-        return labels[indices]

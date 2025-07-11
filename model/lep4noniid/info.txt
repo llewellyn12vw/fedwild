@@ -1,0 +1,10 @@
+Namespace(gpu_ids='0', model_name='federated_model', ex_name='lep4noniid', project_dir='.', data_dir='/home/wellvw12/client_data_non_iid', datasets='0,1,2,3,4,5,6', train_all=False, stride=2, lr=0.001, drop_rate=0.5, model='resnet18_ft_net', local_epoch=1, batch_size=32, num_of_clients=3, erasing_p=0, color_jitter=False, which_epoch='last', multi=False, multiple_scale='1', test_dir='all', cdw=False, kd=False, regularization=False, cosine_annealing=True, total_rounds=150, eta_min=4e-06, kd_lr_ratio=0.1)
+
+DETAILED DISTRIBUTION:
+Client 0 (Rich): 5 identities, Train: 1316, Query: 107, Gallery: 220, Avg: 328.6 samples/identity
+Client 1 (Rich): 5 identities, Train: 811, Query: 65, Gallery: 134, Avg: 202.0 samples/identity
+Client 2 (Medium): 12 identities, Train: 933, Query: 73, Gallery: 154, Avg: 96.7 samples/identity
+Client 3 (Medium): 12 identities, Train: 466, Query: 32, Gallery: 79, Avg: 48.1 samples/identity
+Client 4 (Poor): 31 identities, Train: 620, Query: 54, Gallery: 80, Avg: 24.3 samples/identity
+Client 5 (Poor): 31 identities, Train: 353, Query: 31, Gallery: 40, Avg: 13.7 samples/identity
+Client 6 (Poor): 32 identities, Train: 250, Query: 13, Gallery: 32, Avg: 9.2 samples/identity

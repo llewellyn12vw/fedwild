@@ -25,7 +25,7 @@ def save_results(dataset, metrics):
         
         line = f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')},{dataset},"
         line += f"{metrics['rank1']:.4f},"
-        line += f"{metrics['rank5']:.4f}," if not np.isnan(metrics['rank5']) else "NA,"
+        # line += f"{metrics['rank5']:.4f}," if not np.isnan(metrics['rank5']) else "NA,"
         line += f"{metrics['mAP']:.4f}\n"
         f.write(line)
 
@@ -116,7 +116,7 @@ for i in range(len(query_label)):
 CMC = CMC.float() / valid_queries
 metrics = {
     'rank1': CMC[0].item(),
-    'rank5': CMC[4].item() if len(gallery_label) >= 5 else float('nan'),
+    # 'rank5': CMC[4].item() if len(gallery_label) >= 5 else float('nan'),
     'mAP': ap / valid_queries
 }
 
@@ -127,7 +127,7 @@ save_results(args.dataset, metrics)
 # Print current results
 print(f"\nCurrent Evaluation ({args.dataset}):")
 print(f"Rank-1:  {metrics['rank1']:.4f}")
-if not np.isnan(metrics['rank5']):
-    print(f"Rank-5:  {metrics['rank5']:.4f}")
+# if not np.isnan(metrics['rank5']):
+#     print(f"Rank-5:  {metrics['rank5']:.4f}")
 print(f"mAP:     {metrics['mAP']:.4f}")
 print('-' * 15)

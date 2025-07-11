@@ -77,8 +77,8 @@ class Data():
 
         transform = self.data_transforms['train']
 
-        # metadata = LeopardID2022('/home/wellvw12/leopard')
-        metadata = HyenaID2022('/home/wellvw12/hyenaid2022')
+        metadata = LeopardID2022('/home/wellvw12/leopard')
+        # metadata = HyenaID2022('/home/wellvw12/hyenaid2022')
         df = pd.read_csv(data_path)
         image_dataset = WildlifeDataset(df,metadata.root, transform=transform)
 
@@ -121,9 +121,9 @@ class Data():
         transform = self.data_transforms['val']
 
         for test_dir in self.datasets:
-
-            # metadata = LeopardID2022('/home/wellvw12/leopard')
-            metadata = HyenaID2022('/home/wellvw12/hyenaid2022')
+            # if test_dir != 'test': continue
+            metadata = LeopardID2022('/home/wellvw12/leopard')
+            # metadata = HyenaID2022('/home/wellvw12/hyenaid2022')
 
             # df = pd.read_csv(f'{self.data_dir}/{test_dir}/test.csv')          
             query = pd.read_csv(f'{self.data_dir}/{test_dir}/query.csv')
@@ -165,7 +165,7 @@ class Data():
         self.transform()
         self.preprocess_train()
         self.preprocess_test()
-        self.preprocess_kd_data('kd')
+        # self.preprocess_kd_data('kd')
 
 def get_camera_ids(img_paths):
     """get camera id and labels by image path

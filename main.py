@@ -33,9 +33,9 @@ parser.add_argument('--gpu_ids',default='0', type=str,help='gpu_ids: e.g. 0  0,1
 parser.add_argument('--model_name',default='federated_model', type=str, help='output model name')
 parser.add_argument('--ex_name',default='experimentX', type=str, help='output result name')
 parser.add_argument('--project_dir',default='.', type=str, help='project path')
-parser.add_argument('--data_dir',default='/home/wellvw12/hyena_4/clients',type=str, help='training dir path')
+parser.add_argument('--data_dir',default='/home/wellvw12/client_data_non_iid',type=str, help='training dir path')
 # parser.add_argument('--datasets',default='Market,DukeMTMC-reID,cuhk03-np-detected,cuhk01,MSMT17,viper,prid,3dpes,ilids',type=str, help='datasets used')
-parser.add_argument('--datasets',default='1,2,3,4,test',type=str, help='datasets used')
+parser.add_argument('--datasets',default='0,1,2,3,4,5,6',type=str, help='datasets used')
 parser.add_argument('--train_all', action='store_true', help='use all training data' )
 parser.add_argument('--stride', default=2, type=int, help='stride')
 # arguments for model LEARNING rate reduced by factor of 10 in client training and 
@@ -46,7 +46,7 @@ parser.add_argument('--model', default='resnet18_ft_net', type=str, help='model 
 # arguments for federated setting
 parser.add_argument('--local_epoch', default=1, type=int, help='number of local epochs')
 parser.add_argument('--batch_size', default=32, type=int, help='batch size')
-parser.add_argument('--num_of_clients', default=3, type=int, help='number of clients')
+parser.add_argument('--num_of_clients', default=5, type=int, help='number of clients')
 
 # arguments for data transformation
 parser.add_argument('--erasing_p', default=0, type=float, help='Random Erasing probability, in [0,1]')
@@ -63,11 +63,18 @@ parser.add_argument('--cdw', action='store_true', help='use cosine distance weig
 parser.add_argument('--kd', action='store_true', help='apply knowledge distillation, default false' )
 parser.add_argument('--regularization', action='store_true', help='use regularization during distillation, default false' )
 
+# arguments for FedGKD
+parser.add_argument('--fedgkd', action='store_true', help='enable FedGKD (Global Knowledge Distillation), default false')
+parser.add_argument('--fedgkd_buffer_length', default=5, type=int, help='number of historical models to keep in FedGKD buffer')
+parser.add_argument('--fedgkd_distillation_coeff', default=0.1, type=float, help='coefficient for FedGKD distillation loss')
+parser.add_argument('--fedgkd_temperature', default=2.0, type=float, help='temperature for FedGKD distillation')
+parser.add_argument('--fedgkd_avg_param', action='store_true', help='use FedGKD with parameter averaging (default), if false uses FedGKD-VOTE')
+
 # arguments for cosine annealing learning rate scheduling
-parser.add_argument('--cosine_annealing', action='store_true', help='use cosine annealing learning rate scheduling, default false' )
-parser.add_argument('--total_rounds', default=100, type=int, help='total number of federated rounds for cosine annealing')
-parser.add_argument('--eta_min', default=1e-5, type=float, help='minimum learning rate for cosine annealing')
-parser.add_argument('--kd_lr_ratio', default=0.05, type=float, help='knowledge distillation learning rate as ratio of client LR')
+parser.add_argument('--cosine_annealing', default=True, help='use cosine annealing learning rate scheduling, default false' )
+parser.add_argument('--total_rounds', default=150, type=int, help='total number of federated rounds for cosine annealing')
+parser.add_argument('--eta_min', default=4e-6, type=float, help='minimum learning rate for cosine annealing')
+parser.add_argument('--kd_lr_ratio', default=0.1, type=float, help='knowledge distillation learning rate as ratio of client LR')
 
 
 def train_fd():
@@ -115,16 +122,38 @@ def train_fd():
         args.ex_name,
         args.model,
         args.kd_lr_ratio)
+    
+    # Configure FedGKD if enabled
+    if args.fedgkd:
+        server.configure_fedgkd(
+            buffer_length=args.fedgkd_buffer_length,
+            distillation_coeff=args.fedgkd_distillation_coeff,
+            temperature=args.fedgkd_temperature,
+            avg_param=args.fedgkd_avg_param
+        )
 
     dir_name = os.path.join(args.project_dir, 'model', args.ex_name)
     os.makedirs(dir_name, exist_ok=True)  # Creates parent dirs if needed
 
     print("=====training start!========")
+    print(f"FedGKD enabled: {args.fedgkd}")
+    if args.fedgkd:
+        print(f"FedGKD settings - Buffer: {args.fedgkd_buffer_length}, Coeff: {args.fedgkd_distillation_coeff}, Temp: {args.fedgkd_temperature}, Avg: {args.fedgkd_avg_param}")
+    print(f"Knowledge Distillation enabled: {args.kd}")
+    
+    # Check for incompatible settings
+    if args.fedgkd and args.kd:
+        print("WARNING: FedGKD and Knowledge Distillation are both enabled. FedGKD includes its own distillation mechanism.")
+        print("Consider using only one distillation method for optimal results.")
     
     rounds = args.total_rounds
     for i in range(rounds):
         print('='*10)
         print("Round Number {}".format(i))
+        if args.fedgkd:
+            print(f"FedGKD buffer size: {len(server.fedgkd_models_buffer)}")
+            if not args.fedgkd_avg_param:
+                print(f"FedGKD-VOTE weights: {len(server.fedgkd_model_weights)} computed")
         print('='*10)
         server.train(i, args.cdw, use_cuda,i)
         save_path = os.path.join(dir_name, 'federated_model.pth')
@@ -133,7 +162,7 @@ def train_fd():
             server.test(use_cuda)
         if (i+1)%10 == 0:
             if args.kd:
-                server.knowledge_distillation(args.regularization,i+1)
+                server.knowledge_distillation(args.regularization, round=i+1)
             server.test(use_cuda)
         server.draw_curve()
 

@@ -68,6 +68,17 @@ class Server():
         self.stride = stride
         self.experiment_name = experiment_name
         self.model = model
+        
+        # FedGKD-specific parameters
+        self.fedgkd_enabled = False
+        self.fedgkd_buffer_length = 5
+        self.fedgkd_distillation_coeff = 0.1
+        self.fedgkd_temperature = 1.0
+        self.fedgkd_avg_param = True  # True for FedGKD, False for FedGKD-VOTE
+        self.fedgkd_models_buffer = []  # Store historical global models
+        self.fedgkd_ensemble_teacher = None  # Ensemble teacher model
+        self.fedgkd_model_weights = []  # Weights for FedGKD-VOTE
+        self.historical_cdw_weights = []  # Track CDW weights per round for FedGKD-VOTE
 
         self.multiple_scale = []
         for s in multiple_scale.split(','):
@@ -75,15 +86,156 @@ class Server():
 
         self.full_model = get_model(750, drop_rate, stride, model).to(device)
         
-        # Handle different model types
-        if model == 'megadescriptor':
-            self.full_model.arcface_head = nn.Sequential()
-        else:  # resnet18_ft_net
-            self.full_model.classifier = nn.Sequential()
+        # Remove classifier for federated aggregation
+        self.full_model.classifier = nn.Sequential()
             
         self.federated_model=self.full_model
         self.federated_model.eval()
         self.train_loss = []
+    
+    def configure_fedgkd(self, buffer_length=5, distillation_coeff=0.1, temperature=1.0, avg_param=True):
+        """Configure FedGKD parameters"""
+        self.fedgkd_enabled = True
+        self.fedgkd_buffer_length = buffer_length
+        self.fedgkd_distillation_coeff = distillation_coeff
+        self.fedgkd_temperature = temperature
+        self.fedgkd_avg_param = avg_param
+        print(f"FedGKD configured: buffer_length={buffer_length}, distillation_coeff={distillation_coeff}, temperature={temperature}, avg_param={avg_param}")
+    
+    def ensemble_historical_models(self):
+        """Create ensemble teacher by averaging historical models"""
+        if not self.fedgkd_models_buffer:
+            return None
+            
+        if self.fedgkd_avg_param:
+            # FedGKD: Average all models in buffer
+            ensemble_model = copy.deepcopy(self.fedgkd_models_buffer[0])
+            if len(self.fedgkd_models_buffer) > 1:
+                # Average parameters with proper type handling
+                ensemble_state = ensemble_model.state_dict()
+                for key in ensemble_state.keys():
+                    if ensemble_state[key].dtype.is_floating_point:
+                        ensemble_state[key] = torch.zeros_like(ensemble_state[key])
+                    else:
+                        # For integer tensors, convert to float for averaging
+                        ensemble_state[key] = torch.zeros_like(ensemble_state[key], dtype=torch.float32)
+                    
+                for model in self.fedgkd_models_buffer:
+                    model_state = model.state_dict()
+                    for key in ensemble_state.keys():
+                        if model_state[key].dtype.is_floating_point:
+                            ensemble_state[key] += model_state[key]
+                        else:
+                            # Convert integer tensors to float before adding
+                            ensemble_state[key] += model_state[key].float()
+                
+                # Average with proper type handling
+                num_models = len(self.fedgkd_models_buffer)
+                for key in ensemble_state.keys():
+                    if ensemble_state[key].dtype.is_floating_point:
+                        ensemble_state[key] /= num_models
+                    else:
+                        # For integer tensors (like batch norm stats), convert to float first
+                        ensemble_state[key] = ensemble_state[key].float() / num_models
+                    
+                ensemble_model.load_state_dict(ensemble_state)
+            
+            return ensemble_model
+        else:
+            # FedGKD-VOTE: Return weighted ensemble based on CDW performance
+            if not self.fedgkd_model_weights:
+                # Fallback: equal weights if no CDW data available
+                print("FedGKD-VOTE: No weights available, using equal weighting")
+                return self.fedgkd_models_buffer[0] if len(self.fedgkd_models_buffer) == 1 else None
+            
+            # Create weighted ensemble
+            ensemble_model = copy.deepcopy(self.fedgkd_models_buffer[0])
+            ensemble_state = ensemble_model.state_dict()
+            
+            for key in ensemble_state.keys():
+                if ensemble_state[key].dtype.is_floating_point:
+                    ensemble_state[key] = torch.zeros_like(ensemble_state[key])
+                else:
+                    # For integer tensors, convert to float for weighted averaging
+                    ensemble_state[key] = torch.zeros_like(ensemble_state[key], dtype=torch.float32)
+                
+            for i, model in enumerate(self.fedgkd_models_buffer):
+                weight = self.fedgkd_model_weights[i] if i < len(self.fedgkd_model_weights) else (1.0 / len(self.fedgkd_models_buffer))
+                model_state = model.state_dict()
+                for key in ensemble_state.keys():
+                    if model_state[key].dtype.is_floating_point:
+                        ensemble_state[key] += weight * model_state[key]
+                    else:
+                        # Convert integer tensors to float before weighted addition
+                        ensemble_state[key] += weight * model_state[key].float()
+            
+            # Note: No need to normalize again since weights are already normalized
+            ensemble_model.load_state_dict(ensemble_state)
+            return ensemble_model
+    
+    def update_fedgkd_buffer(self, new_model):
+        """Update FedGKD models buffer with new global model"""
+        if not self.fedgkd_enabled:
+            return
+            
+        # Add new model to buffer
+        model_copy = copy.deepcopy(new_model)
+        self.fedgkd_models_buffer.append(model_copy)
+        
+        # Maintain buffer length
+        if len(self.fedgkd_models_buffer) > self.fedgkd_buffer_length:
+            self.fedgkd_models_buffer.pop(0)
+        
+        # Update ensemble teacher
+        self.fedgkd_ensemble_teacher = self.ensemble_historical_models()
+        
+        print(f"FedGKD buffer updated. Buffer size: {len(self.fedgkd_models_buffer)}")
+    
+    def send_fedgkd_teacher_to_clients(self, selected_clients):
+        """Send ensemble teacher to selected clients"""
+        if not self.fedgkd_enabled or self.fedgkd_ensemble_teacher is None:
+            return
+            
+        for client_id in selected_clients:
+            if client_id in self.clients:
+                self.clients[client_id].receive_fedgkd_teacher(
+                    self.fedgkd_ensemble_teacher, 
+                    self.fedgkd_distillation_coeff, 
+                    self.fedgkd_temperature
+                )
+    
+    def compute_fedgkd_vote_weights(self):
+        """Compute performance-based weights using cosine distance weights for FedGKD-VOTE"""
+        if self.fedgkd_avg_param or not self.historical_cdw_weights:
+            return  # Not needed for standard FedGKD or if no CDW data
+        
+        weights = []
+        
+        # Use cosine distance weights from historical rounds
+        # Higher CDW = better client alignment = higher weight for that model
+        for i, model in enumerate(self.fedgkd_models_buffer):
+            if i < len(self.historical_cdw_weights):
+                # Use average CDW from when this model was the global model
+                cdw_values = self.historical_cdw_weights[i]
+                if cdw_values:  # Check if CDW data exists
+                    avg_cdw = sum(cdw_values) / len(cdw_values)
+                    weight = avg_cdw  # Higher CDW = higher weight
+                else:
+                    weight = 1.0  # Default weight if no CDW data
+            else:
+                weight = 1.0  # Default weight for models without CDW history
+            
+            weights.append(weight)
+        
+        # Apply exponential emphasis on better models and ensure positive weights
+        weights = [max(0.01, w) for w in weights]  # Ensure minimum positive weight
+        weights = [w ** 2 for w in weights]  # Square to amplify differences
+        
+        # Normalize weights
+        total_weight = sum(weights)
+        self.fedgkd_model_weights = [w / total_weight for w in weights]
+        
+        print(f"FedGKD-VOTE weights computed: {[f'{w:.3f}' for w in self.fedgkd_model_weights]}")
 
 
     def train(self, epoch, cdw, use_cuda,round):
@@ -92,6 +244,11 @@ class Server():
         cos_distance_weights = []
         data_sizes = []
         current_client_list = random.sample(self.client_list, self.num_of_clients)
+        
+        # FedGKD: Send ensemble teacher to selected clients before training
+        if self.fedgkd_enabled and self.fedgkd_ensemble_teacher is not None:
+            self.send_fedgkd_teacher_to_clients(current_client_list)
+        
         for i in current_client_list:
             self.clients[i].train(self.federated_model, use_cuda,round)
             cos_distance_weights.append(self.clients[i].get_cos_distance_weight())
@@ -119,11 +276,42 @@ class Server():
 
         self.federated_model = aggregate_models(models, weights)
         
-    def update_kd_learning_rate(self, round_num, decay_factor=0.95):
-        """Update knowledge distillation learning rate with exponential decay"""
-        self.current_kd_lr = self.initial_kd_lr * (decay_factor ** round_num)
+        # FedGKD: Store CDW weights for FedGKD-VOTE and update buffer
+        if self.fedgkd_enabled:
+            # Store CDW weights for this round (for FedGKD-VOTE)
+            if cdw and cos_distance_weights:
+                # Convert tensor CDW weights to CPU float values for storage
+                cdw_values = [w.cpu().item() if hasattr(w, 'cpu') else float(w) for w in cos_distance_weights]
+                self.historical_cdw_weights.append(cdw_values)
+                # Maintain same buffer length as models
+                if len(self.historical_cdw_weights) > self.fedgkd_buffer_length:
+                    self.historical_cdw_weights.pop(0)
+            
+            # Update buffer with new global model
+            self.update_fedgkd_buffer(self.federated_model)
+            
+            # Compute new weights for FedGKD-VOTE
+            if not self.fedgkd_avg_param:
+                self.compute_fedgkd_vote_weights()
+        
+    def update_kd_learning_rate(self, round_num, decay_factor=0.98):
+        """Update knowledge distillation learning rate with gentle exponential decay"""
+        if round_num < 30:
+            self.current_kd_lr = self.initial_kd_lr  # Keep initial rate early
+        else:
+            self.current_kd_lr = self.initial_kd_lr * (decay_factor ** (round_num - 30))
         if round_num % 10 == 0:  # Print every 10 rounds
             print(f"Server KD LR update - Round {round_num}: KD LR = {self.current_kd_lr:.8f}")
+    
+    def get_adaptive_temperature(self, round_num):
+        """Get adaptive temperature for knowledge distillation"""
+        initial_temp = 4.0
+        min_temp = 2.0
+        decay_factor = 0.95
+        
+        # Temperature annealing: start high, decay to minimum
+        current_temp = max(min_temp, initial_temp * (decay_factor ** (round_num / 10)))
+        return current_temp
 
     def draw_curve(self):
         plt.figure()
@@ -143,6 +331,7 @@ class Server():
         print('We use the scale: %s'%self.multiple_scale)
         
         for dataset in self.data.datasets:
+            # if dataset != 'test': continue
             self.federated_model = self.federated_model.eval()
             if use_cuda:
                 self.federated_model = self.federated_model.cuda()
@@ -172,8 +361,13 @@ class Server():
             os.system('python evaluate.py --result_dir {} --dataset {} --output_file {}'.format(os.path.join(self.project_dir, 'model', self.experiment_name), dataset, 'aggregated_result.csv'))
 
 
-    def knowledge_distillation(self, regularization, temperature=2.0, round = 0):
+    def knowledge_distillation(self, regularization, round = 0):
         import torch.nn.functional as F
+        
+        # Adaptive temperature annealing
+        temperature = self.get_adaptive_temperature(round)
+        print(f"Round {round}: Using temperature = {temperature:.4f}")
+        
         optimizer = optim.SGD(self.federated_model.parameters(), lr=self.current_kd_lr, weight_decay=5e-4, momentum=0.9, nesterov=True)
         self.federated_model.train().to(self.device)
 
