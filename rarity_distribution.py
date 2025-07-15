@@ -111,7 +111,7 @@ def analyze_and_distribute_rarity(source_df, num_clients=7, richness_sections=5,
     
     # Distribute rare cases
     for i, (_, identity_row) in enumerate(rare_identities.iterrows()):
-        if i < len(rare_identities) * 0.7:  # 70% to poor clients
+        if i < len(rare_identities) * 0.85:  # 70% to poor clients
             if poor_clients:
                 client_id = poor_clients[i % len(poor_clients)]
             else:
@@ -133,7 +133,7 @@ def analyze_and_distribute_rarity(source_df, num_clients=7, richness_sections=5,
         richness = client_richness[client_id]
         section_num = int(richness.split('_')[1])
         # Higher section number = richer = higher weight
-        weight = section_num ** 2  # Exponential weighting
+        weight = section_num ** 3  # Exponential weighting
         client_weights.append(weight)
     
     # Normalize weights
@@ -285,10 +285,10 @@ if __name__ == "__main__":
     assignment_df, client_stats = analyze_and_distribute_rarity(
         source_df, 
         num_clients=7, 
-        richness_sections=4, 
+        richness_sections=3, 
         rare_threshold_percentile=10,
         test_set_percentage=0.1,
-        output_folder='client_rarity_data9ß',
+        output_folder='client_rarity_data10ß',
         min_samples_threshold=5
     )
     

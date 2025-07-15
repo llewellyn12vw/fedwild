@@ -11,6 +11,7 @@ parser = argparse.ArgumentParser(description='Evaluation')
 parser.add_argument('--result_dir', default='.', type=str, help='Directory containing results')
 parser.add_argument('--dataset', default='no_dataset', type=str, help='Dataset being evaluated')
 parser.add_argument('--output_file', default='aggregated_result.csv', help='File to save aggregated results')
+parser.add_argument('--loss', type=float, default=0.0, help='Loss value for the evaluation')
 args = parser.parse_args()
 
 def save_results(dataset, metrics):
@@ -20,13 +21,18 @@ def save_results(dataset, metrics):
     
     with open(output_file, 'a') as f:
         if not file_exists:
-            header = "timestamp,dataset,rank1,rank5,mAP\n"
+            header = "timestamp,dataset,rank1,mAP,loss\n"
             f.write(header)
         
         line = f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')},{dataset},"
         line += f"{metrics['rank1']:.4f},"
         # line += f"{metrics['rank5']:.4f}," if not np.isnan(metrics['rank5']) else "NA,"
-        line += f"{metrics['mAP']:.4f}\n"
+        line += f"{metrics['mAP']:.4f},"
+        if(args.loss is not None):
+            line += f"{args.loss:.4f}\n"
+        else:
+            line += "NA\n"
+        
         f.write(line)
 
 def print_results_table(output_file):

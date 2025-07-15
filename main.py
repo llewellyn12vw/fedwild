@@ -33,12 +33,12 @@ parser.add_argument('--gpu_ids',default='0', type=str,help='gpu_ids: e.g. 0  0,1
 parser.add_argument('--model_name',default='federated_model', type=str, help='output model name')
 parser.add_argument('--ex_name',default='client_rarity_data', type=str, help='output result name')
 parser.add_argument('--project_dir',default='.', type=str, help='project path')
-parser.add_argument('--data_dir',default='/home/wellvw12/fedReID/client_rarity_data',type=str, help='training dir path')
+parser.add_argument('--data_dir',default='/home/wellvw12/fedReID/client_rarity_data10ß',type=str, help='training dir path')
 # parser.add_argument('--datasets',default='Market,DukeMTMC-reID,cuhk03-np-detected,cuhk01,MSMT17,viper,prid,3dpes,ilids',type=str, help='datasets used')
 parser.add_argument('--datasets',default='0,1,2,3,4,5,6',type=str, help='datasets used')
 parser.add_argument('--train_all', action='store_true', help='use all training data' )
 parser.add_argument('--stride', default=2, type=int, help='stride')
-# arguments for model LEARNING rate reduced by factor of 10 in client training and 
+
 parser.add_argument('--lr', default=0.003, type=float, help='learning rate')
 parser.add_argument('--drop_rate', default=0.03, type=float, help='drop rate')
 parser.add_argument('--model', default='resnet18_ft_net', type=str, help='model name')

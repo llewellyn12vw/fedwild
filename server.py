@@ -354,7 +354,7 @@ class Server():
                         self.experiment_name,
                         'pytorch_result.mat'),
                         result)
-                        
+            
             print(self.model_name)
             print(dataset)
 

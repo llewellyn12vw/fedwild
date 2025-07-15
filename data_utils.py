@@ -10,9 +10,6 @@ from wildlife_datasets.datasets import Cows2021v2, LeopardID2022, HyenaID2022
 import pandas as pd
 import torchvision.transforms as T
 
-
-
-
 class ImageDataset(Dataset):
     def __init__(self, imgs,  transform = None):
         self.imgs = imgs

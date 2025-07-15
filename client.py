@@ -11,7 +11,7 @@ import os
 import scipy.io
 import numpy as np
 import math
-
+import csv
 class Client():
     def __init__(self, cid, data, device, project_dir, model_name, local_epoch, lr, batch_size, drop_rate, stride, experiment_name, model, cosine_annealing=True, total_rounds=100, eta_min=1e-6):
         self.cid = cid
@@ -194,6 +194,20 @@ class Client():
         self.classifier = self.model.classifier
         self.distance = self.optimization.cdw_feature_distance(federated_model, self.old_classifier, self.model)
         self.model.classifier = nn.Sequential()  # Remove for federated aggregation
+        result_dir = os.path.join(self.project_dir, 'model',self.experiment_name, f'client_{self.cid}')
+        os.makedirs(result_dir, exist_ok=True)
+
+        csv_file = os.path.join(result_dir, 'loss.csv')
+        file_exists = os.path.isfile(csv_file)
+        row_data = [self.cid,round, round(self.y_loss[-1],3)]  # Store round and last loss value
+
+        with open(csv_file, 'a', newline='') as f:
+            writer = csv.writer(f)
+            if not file_exists:
+                header = ['client','round','loss']  # Replace with your column names
+                writer.writerow(header)
+            
+            writer.writerow(row_data)
 
         if round == 0 or (round+1)%10 == 0:
             print("Round 1: Client", self.cid, "local model trained, distance:", self.distance)
