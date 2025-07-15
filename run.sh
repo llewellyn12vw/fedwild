@@ -3,10 +3,17 @@
 # Run the commands sequentially
 # python main.py --model_name ex2_110
 
-python main.py --ex_name lep4FedGKD --cdw --fedgkd --fedgkd_avg_param
+# python main.py --ex_name lep_data_non_iid_30pct
 # python main.py --kd --regularization --model_name exKD && \
 # python main.py --cdw --kd --regularization --ex_name exKD_CDW_hyn4
 # python main.py --kd --regularization --model_name ex2_110_kd && \
 # python main.py --cdw --model_name ex2_110_cdw
 
 
+python main.py --fedgkd --cdw --ex_name client_rarity_data9ß \
+    --fedgkd_distillation_coeff 0.5 \
+    --fedgkd_temperature 2.0 \
+    --local_epoch 1 \
+    --num_of_clients 4 \
+    --total_rounds 50 \
+    --fedgkd_avg_param

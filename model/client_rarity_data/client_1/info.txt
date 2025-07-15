@@ -1,0 +1,8 @@
+Client	Train Samples	Query Samples	Gallery Samples	Test Percentage	Total Rare Cases	Rare Cases in Training
+0	129	24	72	42.7%	105	45
+1	209	26	100	37.6%	111	51
+5	793	35	311	30.4%	32	14
+6	808	38	311	30.2%	27	12
+4  1114	39	434	29.8%	26	11
+2	675	15	268	29.5%	0	0
+3	584	16	226	29.3%	0	0
