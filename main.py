@@ -35,20 +35,20 @@ parser.add_argument('--ex_name',default='multiS_regular', type=str, help='output
 parser.add_argument('--project_dir',default='.', type=str, help='project path')
 parser.add_argument('--data_dir',default='/home/wellvw12/fedReID/lep_hyn_exact2',type=str, help='training dir path')
 # parser.add_argument('--datasets',default='Market,DukeMTMC-reID,cuhk03-np-detected,cuhk01,MSMT17,viper,prid,3dpes,ilids',type=str, help='datasets used')
-parser.add_argument('--datasets',default='0,1,2,3',type=str, help='datasets used')
+parser.add_argument('--datasets',default='0,1,2',type=str, help='datasets used')
 parser.add_argument('--train_all', action='store_true', help='use all training data' )
 parser.add_argument('--stride', default=2, type=int, help='stride')
 parser.add_argument('--multi_species', action='store_true', help='use multiple species')
 parser.add_argument('--metadata', default='/home/wellvw12/lep_hyn', type=str, help='metadata type: leopard, hyena, sea_turtle, cow')
 
-parser.add_argument('--lr', default=0.003, type=float, help='learning rate')
+parser.add_argument('--lr', default=0.001, type=float, help='learning rate')
 parser.add_argument('--drop_rate', default=0.03, type=float, help='drop rate')
 parser.add_argument('--model', default='resnet18_ft_net', type=str, help='model name')
 
 # arguments for federated setting
 parser.add_argument('--local_epoch', default=1, type=int, help='number of local epochs')
 parser.add_argument('--batch_size', default=32, type=int, help='batch size')
-parser.add_argument('--num_of_clients', default=4, type=int, help='number of clients')
+parser.add_argument('--num_of_clients', default=3, type=int, help='number of clients')
 
 # arguments for data transformation
 parser.add_argument('--erasing_p', default=0, type=float, help='Random Erasing probability, in [0,1]')
@@ -74,8 +74,8 @@ parser.add_argument('--fedgkd_avg_param', action='store_true', help='use FedGKD 
 
 # arguments for cosine annealing learning rate scheduling
 parser.add_argument('--cosine_annealing', default=True, help='use cosine annealing learning rate scheduling, default false' )
-parser.add_argument('--total_rounds', default=150, type=int, help='total number of federated rounds for cosine annealing')
-parser.add_argument('--eta_min', default=3e-6, type=float, help='minimum learning rate for cosine annealing')
+parser.add_argument('--total_rounds', default=100, type=int, help='total number of federated rounds for cosine annealing')
+parser.add_argument('--eta_min', default=1e-5, type=float, help='minimum learning rate for cosine annealing')
 parser.add_argument('--kd_lr_ratio', default=0.1, type=float, help='knowledge distillation learning rate as ratio of client LR')
 
 
