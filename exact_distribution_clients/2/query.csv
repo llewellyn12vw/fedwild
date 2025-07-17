@@ -1,0 +1,11 @@
+image_id,identity,path,bbox,date,orientation,segmentation,species
+2342,cd1a0522-2a45-4bd1-a68f-dd1baa7bcd99,leopard.coco/images/train2022/000000002336.jpg,"[46, 203, 2229, 980]",,right,,leopard
+3935,9dce1bc1-361d-45d7-9db1-2a143c732b66,leopard.coco/images/train2022/000000003923.jpg,"[404, 1037, 883, 763]",,back,,leopard
+45,bbbaafbc-3889-4d6f-843b-d58fb94fb07c,hyena.coco/images/train2022/000000000046.jpg,"[862, 142, 820, 1454]",,front,,hyena
+92,1da24c9f-d62d-48a6-81b9-afbdc5c0e7af,hyena.coco/images/train2022/000000000091.jpg,"[1409, 443, 945, 580]",,left,,hyena
+253,18d82d10-7fdf-4306-9fe7-73a7f6152e53,hyena.coco/images/train2022/000000000251.jpg,"[5, 511, 1032, 617]",,right,,hyena
+273,248353ce-530e-4dea-97c7-31f6029b2088,hyena.coco/images/train2022/000000000271.jpg,"[20, 94, 2360, 1443]",,right,,hyena
+367,60b9e2bb-87ef-4b1d-923c-f0585a74d0b7,hyena.coco/images/train2022/000000000365.jpg,"[160, 194, 2103, 1600]",,left,,hyena
+505,ebe55d08-674f-417a-a8f6-c776dca6ee8c,hyena.coco/images/train2022/000000000498.jpg,"[203, 171, 2005, 1443]",,left,,hyena
+769,8d704d6e-76b3-4fef-b7e7-5522bc453d98,hyena.coco/images/train2022/000000000760.jpg,"[875, 671, 924, 675]",,right,,hyena
+858,89390731-0ff1-454f-a2ac-8017c49d8da6,hyena.coco/images/train2022/000000000849.jpg,"[1768, 625, 544, 276]",,left,,hyena

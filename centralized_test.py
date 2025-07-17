@@ -41,7 +41,10 @@ class CentralizedTester:
                  num_epochs=10,
                  device='cuda',
                  experiment_name='centralized_test',
-                 random_seed=42):
+                 random_seed=42,
+                 enable_species_eval=True,
+                 species_a_value='leopard',
+                 species_b_value='hyena'):
         
         self.dataset_name = dataset_name
         self.data_dir = data_dir
@@ -51,6 +54,9 @@ class CentralizedTester:
         self.num_epochs = num_epochs
         self.device = device
         self.experiment_name = experiment_name
+        self.enable_species_eval = enable_species_eval
+        self.species_a_value = species_a_value
+        self.species_b_value = species_b_value
         
         # Set random seed for reproducibility
         set_random_seed(random_seed)
@@ -89,7 +95,9 @@ class CentralizedTester:
             batch_size=self.batch_size,
             erasing_p=0.0,  # No random erasing for centralized testing
             color_jitter=False,
-            train_all=False
+            train_all=False,
+            multi_s=True,
+            metadata='/home/wellvw12/lep_hyn'
         )
         
         # Preprocess data
@@ -105,6 +113,49 @@ class CentralizedTester:
         print(f"Total unique classes across all clients: {self.total_classes}")
         
         return client_ids
+    
+    def detect_species(self, client_id):
+        """Detect species from client query and gallery CSV files"""
+        client_dir = os.path.join(self.data_dir, client_id)
+        query_csv = os.path.join(client_dir, 'query.csv')
+        gallery_csv = os.path.join(client_dir, 'gallery.csv')
+        
+        species_found = set()
+        
+        # Check query CSV
+        if os.path.exists(query_csv):
+            df = pd.read_csv(query_csv)
+            if 'species' in df.columns:
+                species_found.update(df['species'].unique())
+        
+        # Check gallery CSV
+        if os.path.exists(gallery_csv):
+            df = pd.read_csv(gallery_csv)
+            if 'species' in df.columns:
+                species_found.update(df['species'].unique())
+        
+        return list(species_found)
+    
+    def get_species_labels(self, client_id):
+        """Get species labels for query and gallery"""
+        client_dir = os.path.join(self.data_dir, client_id)
+        query_csv = os.path.join(client_dir, 'query.csv')
+        gallery_csv = os.path.join(client_dir, 'gallery.csv')
+        
+        query_species = None
+        gallery_species = None
+        
+        if os.path.exists(query_csv):
+            df = pd.read_csv(query_csv)
+            if 'species' in df.columns:
+                query_species = df['species'].values
+        
+        if os.path.exists(gallery_csv):
+            df = pd.read_csv(gallery_csv)
+            if 'species' in df.columns:
+                gallery_species = df['species'].values
+        
+        return query_species, gallery_species
     
     def initialize_model(self):
         """Initialize model architecture"""
@@ -125,7 +176,7 @@ class CentralizedTester:
         self.optimizer = get_optimizer(self.model, self.learning_rate)
         
         # Initialize scheduler
-        self.scheduler = lr_scheduler.StepLR(self.optimizer, step_size=20, gamma=0.1)
+        self.scheduler = lr_scheduler.StepLR(self.optimizer, step_size=100, gamma=0.9)
         
         print(f"Model initialized with {sum(p.numel() for p in self.model.parameters())} parameters")
         
@@ -261,7 +312,7 @@ class CentralizedTester:
             mat_path = os.path.join(result_dir, 'pytorch_result.mat')
             scipy.io.savemat(mat_path, result)
             
-            # Run evaluation
+            # Run overall evaluation
             metrics = self._evaluate_client_performance(result)
             
             client_result = {
@@ -272,9 +323,43 @@ class CentralizedTester:
                 'num_gallery': len(gallery_features)
             }
             
-            client_results.append(client_result)
+            print(f"Client {client_id} - Overall Rank-1: {metrics['rank1']:.4f}, mAP: {metrics['mAP']:.4f}")
             
-            print(f"Client {client_id} - Rank-1: {metrics['rank1']:.4f}, mAP: {metrics['mAP']:.4f}")
+            # Species-specific evaluation
+            if self.enable_species_eval:
+                species_found = self.detect_species(client_id)
+                if len(species_found) > 1:
+                    print(f"  Multi-species detected: {species_found}")
+                    query_species, gallery_species = self.get_species_labels(client_id)
+                    
+                    species_metrics = {}
+                    for species in species_found:
+                        species_perf = self._evaluate_species_performance(
+                            result, query_species, gallery_species, species
+                        )
+                        species_metrics[species] = species_perf
+                        
+                        print(f"  {species} - Rank-1: {species_perf['rank1']:.4f}, mAP: {species_perf['mAP']:.4f}, Queries: {species_perf['valid_queries']}")
+                    
+                    client_result['species_metrics'] = species_metrics
+                    
+                    # Save species-specific results to client folder
+                    species_results = []
+                    for species, perf in species_metrics.items():
+                        species_results.append({
+                            'species': species,
+                            'rank1': perf['rank1'],
+                            'mAP': perf['mAP'],
+                            'valid_queries': perf['valid_queries']
+                        })
+                    
+                    species_df = pd.DataFrame(species_results)
+                    species_df.to_csv(os.path.join(result_dir, 'species_evaluation.csv'), index=False)
+                else:
+                    print(f"  Single species detected: {species_found}")
+                    client_result['species_metrics'] = None
+            
+            client_results.append(client_result)
         
         return client_results
     
@@ -351,6 +436,56 @@ class CentralizedTester:
         
         return ap, cmc
     
+    def _evaluate_species_performance(self, result, query_species, gallery_species, target_species):
+        """Evaluate performance for a specific species"""
+        query_feature = torch.FloatTensor(result['query_f']).cuda()
+        query_label = result['query_label']
+        gallery_feature = torch.FloatTensor(result['gallery_f']).cuda()
+        gallery_label = result['gallery_label']
+        
+        # Filter query indices for target species
+        query_indices = np.where(query_species == target_species)[0]
+        
+        if len(query_indices) == 0:
+            return {'rank1': 0.0, 'mAP': 0.0, 'valid_queries': 0}
+        
+        # Filter gallery indices for target species
+        gallery_indices = np.where(gallery_species == target_species)[0]
+        
+        if len(gallery_indices) == 0:
+            return {'rank1': 0.0, 'mAP': 0.0, 'valid_queries': 0}
+        
+        # Extract features and labels for target species
+        species_qf = query_feature[query_indices]
+        species_ql = query_label[query_indices]
+        species_gf = gallery_feature[gallery_indices]
+        species_gl = gallery_label[gallery_indices]
+        
+        # Run evaluation
+        CMC = torch.IntTensor(len(species_gl)).zero_()
+        ap = 0.0
+        valid_queries = 0
+        
+        for i in range(len(species_ql)):
+            ap_tmp, CMC_tmp = self._evaluate_single_query(
+                species_qf[i], species_ql[i], species_gf, species_gl
+            )
+            if CMC_tmp[0] == -1:
+                continue
+            CMC += CMC_tmp
+            ap += ap_tmp
+            valid_queries += 1
+        
+        if valid_queries > 0:
+            CMC = CMC.float() / valid_queries
+            ap = ap / valid_queries
+        
+        return {
+            'rank1': CMC[0].item() if valid_queries > 0 else 0.0,
+            'mAP': ap,
+            'valid_queries': valid_queries
+        }
+    
     def save_results(self, client_results, train_losses, train_accuracies):
         """Save comprehensive results"""
         results_dir = os.path.join('results', self.experiment_name)
@@ -375,6 +510,36 @@ class CentralizedTester:
         # Save client evaluation results
         client_df = pd.DataFrame(client_results)
         client_df.to_csv(os.path.join(results_dir, 'client_evaluation.csv'), index=False)
+        
+        # Save species-specific summary if enabled
+        if self.enable_species_eval:
+            species_summary = []
+            for result in client_results:
+                if result.get('species_metrics'):
+                    for species, metrics in result['species_metrics'].items():
+                        species_summary.append({
+                            'client_id': result['client_id'],
+                            'species': species,
+                            'rank1': metrics['rank1'],
+                            'mAP': metrics['mAP'],
+                            'valid_queries': metrics['valid_queries']
+                        })
+            
+            if species_summary:
+                species_df = pd.DataFrame(species_summary)
+                species_df.to_csv(os.path.join(results_dir, 'species_summary.csv'), index=False)
+                
+                # Calculate average metrics per species
+                species_avg = species_df.groupby('species').agg({
+                    'rank1': 'mean',
+                    'mAP': 'mean',
+                    'valid_queries': 'sum'
+                }).round(4)
+                
+                print(f"\nSpecies-specific Average Performance:")
+                print(species_avg)
+                
+                species_avg.to_csv(os.path.join(results_dir, 'species_average.csv'))
         
         # Save summary
         summary = {
@@ -423,17 +588,21 @@ class CentralizedTester:
 def main():
     parser = argparse.ArgumentParser(description='Centralized Testing for FedReID')
     parser.add_argument('--dataset', default='LeopardID2022', help='Dataset name')
-    parser.add_argument('--data_dir', default="/home/wellvw12/fedReID/client_rarity_data", help='Data directory')
+    parser.add_argument('--data_dir', default="/home/wellvw12/fedReID/lep_hyn_exact", help='Data directory')
     parser.add_argument('--model_type', default='resnet18_ft_net', 
                        choices=['resnet18_ft_net', 'megadescriptor'], help='Model type')
     parser.add_argument('--batch_size', type=int, default=32, help='Batch size')
     parser.add_argument('--learning_rate', type=float, default=0.005, help='Learning rate')
-    parser.add_argument('--num_epochs', type=int, default=20, help='Number of epochs')
+    parser.add_argument('--num_epochs', type=int, default=1, help='Number of epochs')
     parser.add_argument('--device', default='cuda', help='Device to use')
     parser.add_argument('--experiment_name', default='centralized_test', help='Experiment name')
     parser.add_argument('--client_ids', nargs='+', default=None, 
                        help='Client IDs to use (e.g., 0 1 2)')
     parser.add_argument('--random_seed', type=int, default=42, help='Random seed')
+    parser.add_argument('--enable_species_eval', action='store_true', default=True,
+                       help='Enable species-specific evaluation')
+    parser.add_argument('--species_a_value', default='leopard', type=str, help='Species A value')
+    parser.add_argument('--species_b_value', default='hyena', type=str, help='Species B value')
     
     args = parser.parse_args()
     
@@ -450,7 +619,10 @@ def main():
         num_epochs=args.num_epochs,
         device=args.device,
         experiment_name=args.experiment_name,
-        random_seed=args.random_seed
+        random_seed=args.random_seed,
+        enable_species_eval=args.enable_species_eval,
+        species_a_value=args.species_a_value,
+        species_b_value=args.species_b_value
     )
     
     # Run experiment

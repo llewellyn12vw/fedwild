@@ -104,15 +104,17 @@ class Client():
         
         return distillation_loss
 
-    def train(self, federated_model, use_cuda,round):
+    def train(self, federated_model, use_cuda,rnd):
         self.y_err = []
         self.y_loss = []
 
         # Update learning rate based on round number
-        self.update_learning_rate(round)
-        self.model.load_state_dict(federated_model.state_dict())
+        self.update_learning_rate(rnd)
         
-        # Restore classifier
+        
+        self.model.load_state_dict(federated_model.state_dict())
+    
+        
         self.model.classifier = self.classifier
         self.old_classifier = copy.deepcopy(self.classifier)
             
@@ -122,20 +124,15 @@ class Client():
         # scheduler = lr_scheduler.StepLR(optimizer, step_size=25, gamma=0.1)
         # scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=100, eta_min=1e-6)
 
-        
-        # ArcFace loss is computed within the model forward pass
-
         since = time.time()
-
-        print('Client', self.cid, 'start training')
+        
         for epoch in range(self.local_epoch):
-            print('Epoch {}/{}'.format(epoch, self.local_epoch - 1))
-            print('-' * 10)
 
             # scheduler.step()
             self.model.train(True)
             running_loss = 0.0
             running_corrects = 0.0
+            batch_count = 0
             
             for data in self.train_loader:
                 inputs, labels = data
@@ -159,15 +156,25 @@ class Client():
                 if self.fedgkd_enabled:
                     fedgkd_loss = self.compute_fedgkd_distillation_loss(outputs, inputs)
                     loss += fedgkd_loss
+                    print(f"client {self.cid} FedGKD distillation loss: {fedgkd_loss.item():.4f}")
                 
                 # Standard predictions
                 _, preds = torch.max(outputs.data, 1)
-                
+                                
                 loss.backward()
+                
+                # DEBUG: Check gradients after backward
+                total_grad_norm = 0.0
+                param_count = 0
+                for p in self.model.parameters():
+                    if p.grad is not None:
+                        total_grad_norm += p.grad.norm().item()
+                        param_count += 1
+                                
                 optimizer.step()
-
                 running_loss += loss.item() * b
                 running_corrects += float(torch.sum(preds == labels.data))
+                batch_count += 1
 
             # scheduler.step()
             used_data_sizes = (self.dataset_sizes - self.dataset_sizes % self.batch_size)
@@ -188,18 +195,19 @@ class Client():
         print('Client', self.cid, 'Training complete in {:.0f}m {:.0f}s'.format(
             time_elapsed // 60, time_elapsed % 60))
         
-        # save_network(self.model, self.cid, 'last', self.project_dir, self.model_name, gpu_ids)
-        
+                
         # Store classifier and remove for federated aggregation
         self.classifier = self.model.classifier
         self.distance = self.optimization.cdw_feature_distance(federated_model, self.old_classifier, self.model)
+        
         self.model.classifier = nn.Sequential()  # Remove for federated aggregation
+        
         result_dir = os.path.join(self.project_dir, 'model',self.experiment_name, f'client_{self.cid}')
         os.makedirs(result_dir, exist_ok=True)
 
         csv_file = os.path.join(result_dir, 'loss.csv')
         file_exists = os.path.isfile(csv_file)
-        row_data = [self.cid,round, round(self.y_loss[-1],3)]  # Store round and last loss value
+        row_data = [self.cid,rnd, round(self.y_loss[-1],3)]  # Store round and last loss value
 
         with open(csv_file, 'a', newline='') as f:
             writer = csv.writer(f)
@@ -209,7 +217,7 @@ class Client():
             
             writer.writerow(row_data)
 
-        if round == 0 or (round+1)%10 == 0:
+        if rnd == 0 or (rnd+1)%10 == 0:
             print("Round 1: Client", self.cid, "local model trained, distance:", self.distance)
             self.test(use_cuda)
 
@@ -256,10 +264,12 @@ class Client():
         output_file = os.path.join(result_dir, 'local_result.csv')
         cmd = (
             f"python evaluate.py --result_dir {result_dir} "
-            f"--dataset client_{self.cid} --output_file local_result.csv"
+            f"--dataset client_{self.cid} --output_file local_result.csv "
+            f"--enable_species_eval --species_a leopard --species_b hyena"
         )
         os.system(cmd)
         print(f"Client {self.cid} local test results saved to {output_file}")
+        print(f"Client {self.cid} species-specific results saved to leopard_evaluation_results.csv and hyena_evaluation_results.csv")
 
     def generate_soft_label(self, x, regularization, temperature=4.0):
         self.model = self.model.to(x.device)  # Ensure model matches input device

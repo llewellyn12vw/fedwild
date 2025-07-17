@@ -1,0 +1,15 @@
+image_id,identity,path,bbox,date,orientation,segmentation,species
+127,2039c9dc-9b2d-41c0-9ffd-4bd5297813ed,leopard.coco/images/train2022/000000000128.jpg,"[569, 557, 891, 938]",,back,,leopard
+265,1e869eda-07c6-4f08-a932-d9a04c207dbf,leopard.coco/images/train2022/000000000266.jpg,"[81, 356, 2300, 973]",,left,,leopard
+1841,f6195900-8fc6-4d89-a37c-f82a956d1086,leopard.coco/images/train2022/000000001836.jpg,"[1078, 683, 1219, 561]",,left,,leopard
+2119,fed7544d-1138-4fde-91c2-ba323015fc64,leopard.coco/images/train2022/000000002114.jpg,"[1784, 606, 616, 524]",,left,,leopard
+2718,5f9e6723-6dd0-4ba1-bbce-936fc6e70e90,leopard.coco/images/train2022/000000002708.jpg,"[922, 837, 1382, 631]",,left,,leopard
+2747,9170ae5b-fd20-48da-9bb1-cee515714e68,leopard.coco/images/train2022/000000002737.jpg,"[1301, 554, 406, 291]",,right,,leopard
+17,761abc97-f81c-4a09-823b-7cb1c528c290,hyena.coco/images/train2022/000000000018.jpg,"[59, 48, 2326, 1663]",,right,,hyena
+30,08626c7e-f14d-4a22-8b38-f8474c0196de,hyena.coco/images/train2022/000000000031.jpg,"[403, 502, 1359, 942]",,right,,hyena
+79,7251cda9-d3d5-4249-baf0-4f4c1480adc9,hyena.coco/images/train2022/000000000078.jpg,"[165, 449, 1294, 669]",,left,,hyena
+155,20086390-26ac-4539-9130-b31b9d993672,hyena.coco/images/train2022/000000000154.jpg,"[940, 1029, 661, 220]",,left,,hyena
+245,d7cd8e39-12e4-40a8-b2f7-7c24f291d2aa,hyena.coco/images/train2022/000000000243.jpg,"[0, 444, 911, 954]",,right,,hyena
+285,9110686e-9241-4260-ab50-18cf4ae4a49f,hyena.coco/images/train2022/000000000283.jpg,"[33, 115, 1973, 1708]",,left,,hyena
+548,39e2a478-dfec-4851-be25-af197a3d183f,hyena.coco/images/train2022/000000000540.jpg,"[57, 239, 1069, 1609]",,right,,hyena
+1126,2434dcf2-9360-46ae-b7be-96de59209f91,hyena.coco/images/train2022/000000001112.jpg,"[14, 103, 2378, 1755]",,left,,hyena

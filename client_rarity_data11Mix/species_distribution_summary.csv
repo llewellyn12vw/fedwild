@@ -1,0 +1,8 @@
+client_id,train_samples_a,train_samples_b,query_samples_a,query_samples_b,gallery_samples_a,gallery_samples_b,train_identities_a,train_identities_b,query_identities_a,query_identities_b,gallery_identities_a,gallery_identities_b,total_samples,species_b_ratio
+0,89,135,0,50,0,100,16,25,0,25,0,25,374,0.7620320855614974
+1,161,329,19,27,44,56,19,27,19,27,19,27,636,0.6477987421383647
+4,1964,32,55,4,236,8,55,4,55,4,55,4,2299,0.019138755980861243
+5,1879,29,51,3,224,6,51,3,51,3,51,3,2192,0.017335766423357664
+6,882,10,34,3,113,6,34,3,34,3,34,3,1048,0.01812977099236641
+2,78,22,8,4,17,8,8,4,8,4,8,4,137,0.24817518248175183
+3,321,22,10,4,42,8,10,4,10,4,10,4,407,0.08353808353808354

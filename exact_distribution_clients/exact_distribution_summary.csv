@@ -1,0 +1,4 @@
+client_id,client_name,train_samples_a,train_samples_b,train_ids_a,train_ids_b,query_samples_a,query_samples_b,gallery_samples_a,gallery_samples_b,total_samples
+0,client_1,1411,25,57,3,3,9,93,99,1640
+1,client_2,22,1417,3,108,6,8,96,98,1647
+2,client_3,407,0,10,0,2,8,92,98,607

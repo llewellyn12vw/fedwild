@@ -15,22 +15,34 @@ from torchvision import datasets
 def add_model(dst_model, src_model, dst_no_data, src_no_data):
     if dst_model is None:
         result = copy.deepcopy(src_model)
+        # DEBUG: First model copy
+        param_sum = sum(p.sum().item() for p in result.parameters())
+        print(f"  First model copy: Parameter sum={param_sum:.6f}")
         return result
+    
     params1 = src_model.named_parameters()
     params2 = dst_model.named_parameters()
     dict_params2 = dict(params2)
+    
     with torch.no_grad():
         for name1, param1 in params1:
             if name1 in dict_params2:
                 dict_params2[name1].set_(param1.data*src_no_data + dict_params2[name1].data*dst_no_data)
+    
+
     return dst_model
 
 def scale_model(model, scale):
     params = model.named_parameters()
     dict_params = dict(params)
+    
+    # DEBUG: Before scaling
+    param_sum_before = sum(p.sum().item() for p in model.parameters())
+    
     with torch.no_grad():
         for name, param in dict_params.items():
             dict_params[name].set_(dict_params[name].data * scale)
+        
     return model
 #[2,3,1]
 def aggregate_models(models, weights):
@@ -39,14 +51,18 @@ def aggregate_models(models, weights):
         models: model updates from clients
         weights: weights for each model, e.g. by data sizes or cosine distance of features
     """
+    print(f"\n=== SERVER AGGREGATION DEBUG ===")
     if models == []:
         return None
+        
     model = add_model(None, models[0], 0, weights[0])
     total_no_data = weights[0]
+        
     for i in range(1, len(models)):
         model = add_model(model, models[i], total_no_data, weights[i])
         model = scale_model(model, 1.0 / (total_no_data+weights[i]))
         total_no_data = total_no_data + weights[i]
+            
     return model
 
 
@@ -249,13 +265,15 @@ class Server():
         if self.fedgkd_enabled and self.fedgkd_ensemble_teacher is not None:
             self.send_fedgkd_teacher_to_clients(current_client_list)
         
+        print(f"\n=== SERVER TRAINING ROUND {round} ===")
+        
         for i in current_client_list:
             self.clients[i].train(self.federated_model, use_cuda,round)
             cos_distance_weights.append(self.clients[i].get_cos_distance_weight())
             loss.append(self.clients[i].get_train_loss())
             models.append(self.clients[i].get_model())
             data_sizes.append(self.clients[i].get_data_sizes())
-
+            
         if epoch==0:
             self.L0 = torch.Tensor(loss) 
 
@@ -264,6 +282,11 @@ class Server():
         print("==============================")
         print("number of clients used:", len(models))
         print('Train Epoch: {}, AVG Train Loss among clients of lost epoch: {:.6f}'.format(epoch, avg_loss))
+        print(f"Data sizes: {data_sizes}")
+        if cdw:
+            print(f"Using CDW weights: {cos_distance_weights}")
+        else:
+            print(f"Using data size weights: {data_sizes}")
         print()
         
         self.train_loss.append(avg_loss)
@@ -274,6 +297,7 @@ class Server():
             print("cos distance weights:", cos_distance_weights)
             weights = cos_distance_weights
 
+        
         self.federated_model = aggregate_models(models, weights)
         
         # FedGKD: Store CDW weights for FedGKD-VOTE and update buffer

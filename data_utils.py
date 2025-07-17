@@ -24,14 +24,16 @@ class ImageDataset(Dataset):
 
 
 class Data():
-    def __init__(self, datasets, data_dir, batch_size, erasing_p, color_jitter, train_all):
+    def __init__(self, datasets, data_dir, batch_size, erasing_p, color_jitter, train_all,multi_s, metadata):
         self.datasets = datasets.split(',')
         self.batch_size = batch_size
         self.erasing_p = erasing_p
         self.color_jitter = color_jitter
         self.data_dir = data_dir
         self.train_all = '_all' if train_all else ''
-        
+        self.multi_s = multi_s
+        self.metadata = metadata
+
     def transform(self):
         transform_train = [
                 transforms.Resize((224,224), interpolation=3),
@@ -73,11 +75,15 @@ class Data():
         
 
         transform = self.data_transforms['train']
+        if self.multi_s:
+            metadata = self.metadata
+        else:
+            # Use single species metadata
+             metadata = LeopardID2022('/home/wellvw12/leopard').root
 
-        metadata = LeopardID2022('/home/wellvw12/leopard')
         # metadata = HyenaID2022('/home/wellvw12/hyenaid2022')
         df = pd.read_csv(data_path)
-        image_dataset = WildlifeDataset(df,metadata.root, transform=transform)
+        image_dataset = WildlifeDataset(df,metadata, transform=transform)
 
         loader = torch.utils.data.DataLoader(
             image_dataset, 
@@ -119,14 +125,18 @@ class Data():
 
         for test_dir in self.datasets:
             # if test_dir != 'test': continue
-            metadata = LeopardID2022('/home/wellvw12/leopard')
+            if self.multi_s:
+                metadata = self.metadata
+            else:
+                # Use single species metadata
+                metadata = LeopardID2022('/home/wellvw12/leopard').root
             # metadata = HyenaID2022('/home/wellvw12/hyenaid2022')
 
             # df = pd.read_csv(f'{self.data_dir}/{test_dir}/test.csv')          
             query = pd.read_csv(f'{self.data_dir}/{test_dir}/query.csv')
             gallery = pd.read_csv(f'{self.data_dir}/{test_dir}/gallery.csv')
-            gallery_dataset = WildlifeDataset(gallery, metadata.root, transform=transform)
-            query_dataset = WildlifeDataset(query, metadata.root, transform=transform)
+            gallery_dataset = WildlifeDataset(gallery, metadata, transform=transform)
+            query_dataset = WildlifeDataset(query, metadata, transform=transform)
             # Print distribution stats
             # print(f"Query images: {len(query)} ({len(query)/len(df)*100:.1f}%)")
             # print(f"Gallery images: {len(gallery)} ({len(gallery)/len(df)*100:.1f}%)")

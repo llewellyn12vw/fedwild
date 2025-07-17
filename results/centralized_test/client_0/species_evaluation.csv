@@ -1,0 +1,3 @@
+species,rank1,mAP,valid_queries
+leopard,1.0,0.9299013570041156,20
+hyena,0.0,0.15151129098529495,18
