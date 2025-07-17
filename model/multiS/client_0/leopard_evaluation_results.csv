@@ -1,0 +1,2 @@
+timestamp,dataset,rank1,mAP,valid_queries,loss
+2025-07-17 08:01:45,0,1.0000,0.9198,20,0.0000

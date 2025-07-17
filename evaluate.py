@@ -36,7 +36,8 @@ def get_species_labels():
         df = pd.read_csv(gallery_csv)
         if 'species' in df.columns:
             gallery_species = df['species'].values
-    
+    print(species_result_dir)
+    print(f"Query species: {query_species}, Gallery species: {gallery_species}")
     return query_species, gallery_species
 
 def evaluate_by_species(qf, ql, gf, gl, query_species, gallery_species, target_species):

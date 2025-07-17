@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
 """
 Exact Distribution Client Generator
-Creates 3 clients with specific sample distributions:
-Client 1: Rich A (~1400:50ids), Poor B (~20:3ids)
-Client 2: Rich B (~1400:50ids), Poor A (~20:3ids)  
+Creates 4 clients with specific sample distributions:
+Client 1: Rich A (~1400:50ids), Poor B (~10:2ids)
+Client 2: Moderate A (~500:25ids), Moderate B (~100:10ids)  
 Client 3: Medium A (~300:40ids), No B training, both A&B in test
+Client 4: Poor A (~10:2ids), Rich B (~1200:50ids)
 """
 
 import pandas as pd
@@ -94,10 +95,11 @@ def create_exact_distribution(df, species_column='species', identity_column='ide
                              species_a_value='leopard', species_b_value='hyena',
                              output_dir='exact_distribution_clients', random_seed=42):
     """
-    Create 3 clients with exact distributions:
-    Client 1: ~1400 A (50 IDs), ~20 B (3 IDs)
-    Client 2: ~1400 B (50 IDs), ~20 A (3 IDs)
+    Create 4 clients with exact distributions:
+    Client 1: ~1400 A (50 IDs), ~10 B (2 IDs)
+    Client 2: ~500 A (25 IDs), ~100 B (10 IDs)
     Client 3: ~300 A (40 IDs), 0 B training, B in test
+    Client 4: ~10 A (2 IDs), ~1200 B (50 IDs)
     """
     
     np.random.seed(random_seed)
@@ -112,22 +114,32 @@ def create_exact_distribution(df, species_column='species', identity_column='ide
     
     # Target distributions
     targets = {
+        # Client 1: Data-rich in A, minimal B (common real-world scenario)
         'client_1': {
-            'a_samples': 1400, 'a_ids': 50,
-            'b_samples': 20, 'b_ids': 3,
-            'test_a': 20, 'test_b': 20,
+            'a_samples': 1400, 'a_ids': 50,  # Dominant class
+            'b_samples': 10,   'b_ids': 2,    # Very few B samples (hard to learn locally)
+            'test_a': 20, 'test_b': 20,       # Balanced test (unlocks evaluation fairness)
             'gallery_a': 90, 'gallery_b': 90
         },
+        # Client 2: Moderate A, moderate B (acts as a "bridge" for knowledge sharing)
         'client_2': {
-            'a_samples': 20, 'a_ids': 3,
-            'b_samples': 1400, 'b_ids': 50,
+            'a_samples': 500, 'a_ids': 25,
+            'b_samples': 100, 'b_ids': 10,    # Enough B to contribute meaningfully
             'test_a': 30, 'test_b': 30,
             'gallery_a': 90, 'gallery_b': 90
         },
+        # Client 3: Missing B entirely (tests catastrophic forgetting)
         'client_3': {
             'a_samples': 300, 'a_ids': 40,
-            'b_samples': 0, 'b_ids': 0,
-            'test_a': 30, 'test_b': 30,
+            'b_samples': 0,   'b_ids': 0,     # No B samples (worst-case non-IID)
+            'test_a': 30, 'test_b': 30,       # Note: Still test B to measure transfer
+            'gallery_a': 90, 'gallery_b': 90
+        },
+        # Client 4: Data-rich in B, minimal A (inverts the skew, tests generalization)
+        'client_4': {
+            'a_samples': 10,  'a_ids': 2,
+            'b_samples': 1200, 'b_ids': 50,   # Dominant in B
+            'test_a': 20, 'test_b': 20,
             'gallery_a': 90, 'gallery_b': 90
         }
     }
@@ -353,7 +365,7 @@ def create_exact_distribution(df, species_column='species', identity_column='ide
         print(f"{'='*90}")
         print(f"Client | Train A/B (IDs)    | Query A/B | Gallery A/B | Total | Description")
         print(f"-------|---------------------|-----------|-------------|-------|-------------")
-        descriptions = ["Rich A, Poor B", "Rich B, Poor A", "Medium A, Test-Only B"]
+        descriptions = ["Rich A, Poor B", "Moderate A+B", "Medium A, Test-Only B", "Poor A, Rich B"]
         
         for i, row in stats_df.iterrows():
             train_str = f"{row['train_samples_a']:4}/{row['train_samples_b']:2} ({row['train_ids_a']:2}/{row['train_ids_b']:1})"
@@ -367,7 +379,7 @@ def create_exact_distribution(df, species_column='species', identity_column='ide
 def main():
     parser = argparse.ArgumentParser(description='Create Exact Distribution Clients')
     parser.add_argument('--input_csv', required=True, help='Input CSV file with two species')
-    parser.add_argument('--output_dir', default='lep_hyn_exact', help='Output directory')
+    parser.add_argument('--output_dir', default='lep_hyn_exact2', help='Output directory')
     parser.add_argument('--species_column', default='species', help='Species column name')
     parser.add_argument('--identity_column', default='identity', help='Identity column name')
     parser.add_argument('--species_a_value', default='leopard', help='Species A value')

@@ -22,3 +22,17 @@ Client | Train A/B | Query A/B | Gallery A/B
    6.0 | 34.0/ 3.0 | 34.0/ 3.0 |   34.0/   3.0
    2.0 |  8.0/ 4.0 |  8.0/ 4.0 |    8.0/   4.0
    3.0 | 10.0/ 4.0 | 10.0/ 4.0 |   10.0/   4.0
+
+
+
+   client 1: train.csv 1400:A(50ids) 20:B(3ids)
+            query.csv 20 A and 20
+            gallery.csv 90 A and 90 B
+
+   client 2: train.csv 1400:B(50ids) 20:A(3ids)
+            query.csv 30 A and 30
+            gallery.csv 90 A and 90 B 
+
+   client 4: train.csv 300:A(40ids) 0:B(0ids)
+            query.csv 30 A and 30
+            gallery.csv 90 A and 90 B 

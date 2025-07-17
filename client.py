@@ -264,7 +264,7 @@ class Client():
         output_file = os.path.join(result_dir, 'local_result.csv')
         cmd = (
             f"python evaluate.py --result_dir {result_dir} "
-            f"--dataset client_{self.cid} --output_file local_result.csv "
+            f"--dataset {self.cid} --output_file local_result.csv "
             f"--enable_species_eval --species_a leopard --species_b hyena"
         )
         os.system(cmd)

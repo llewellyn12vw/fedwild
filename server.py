@@ -51,7 +51,6 @@ def aggregate_models(models, weights):
         models: model updates from clients
         weights: weights for each model, e.g. by data sizes or cosine distance of features
     """
-    print(f"\n=== SERVER AGGREGATION DEBUG ===")
     if models == []:
         return None
         
@@ -282,12 +281,6 @@ class Server():
         print("==============================")
         print("number of clients used:", len(models))
         print('Train Epoch: {}, AVG Train Loss among clients of lost epoch: {:.6f}'.format(epoch, avg_loss))
-        print(f"Data sizes: {data_sizes}")
-        if cdw:
-            print(f"Using CDW weights: {cos_distance_weights}")
-        else:
-            print(f"Using data size weights: {data_sizes}")
-        print()
         
         self.train_loss.append(avg_loss)
         
