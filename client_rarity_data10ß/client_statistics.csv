@@ -1,8 +1,0 @@
-client_id,num_identities,total_samples,rare_count,client_richness,rare_percentage
-0,16,89,15,section_1,93.75
-1,19,224,15,section_1,78.95
-2,8,103,0,section_2,0.0
-3,10,373,0,section_2,0.0
-4,55,2255,2,section_3,3.64
-5,51,2154,2,section_3,3.92
-6,34,1029,1,section_3,2.94

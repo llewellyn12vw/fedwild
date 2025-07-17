@@ -1,3 +1,0 @@
-lr = 0.005 initial
-step scheduler 
-2 epochs

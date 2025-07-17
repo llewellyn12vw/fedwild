@@ -15,9 +15,6 @@ from torchvision import datasets
 def add_model(dst_model, src_model, dst_no_data, src_no_data):
     if dst_model is None:
         result = copy.deepcopy(src_model)
-        # DEBUG: First model copy
-        param_sum = sum(p.sum().item() for p in result.parameters())
-        print(f"  First model copy: Parameter sum={param_sum:.6f}")
         return result
     
     params1 = src_model.named_parameters()
@@ -193,7 +190,6 @@ class Server():
         if not self.fedgkd_enabled:
             return
             
-        # Add new model to buffer
         model_copy = copy.deepcopy(new_model)
         self.fedgkd_models_buffer.append(model_copy)
         
@@ -260,7 +256,6 @@ class Server():
         data_sizes = []
         current_client_list = random.sample(self.client_list, self.num_of_clients)
         
-        # FedGKD: Send ensemble teacher to selected clients before training
         if self.fedgkd_enabled and self.fedgkd_ensemble_teacher is not None:
             self.send_fedgkd_teacher_to_clients(current_client_list)
         
@@ -287,7 +282,6 @@ class Server():
         weights = data_sizes
         
         if cdw:
-            print("cos distance weights:", cos_distance_weights)
             weights = cos_distance_weights
 
         
@@ -295,16 +289,13 @@ class Server():
         
         # FedGKD: Store CDW weights for FedGKD-VOTE and update buffer
         if self.fedgkd_enabled:
-            # Store CDW weights for this round (for FedGKD-VOTE)
             if cdw and cos_distance_weights:
-                # Convert tensor CDW weights to CPU float values for storage
                 cdw_values = [w.cpu().item() if hasattr(w, 'cpu') else float(w) for w in cos_distance_weights]
                 self.historical_cdw_weights.append(cdw_values)
-                # Maintain same buffer length as models
+                # same buffer length as models
                 if len(self.historical_cdw_weights) > self.fedgkd_buffer_length:
                     self.historical_cdw_weights.pop(0)
             
-            # Update buffer with new global model
             self.update_fedgkd_buffer(self.federated_model)
             
             # Compute new weights for FedGKD-VOTE
@@ -405,26 +396,18 @@ class Server():
                 self.clients[i].model = self.clients[i].model.to(self.device)
                 
                 # Keep heads removed for feature-level distillation
-                # The models should already have heads removed from previous operations
                 
                 i_label = (self.clients[i].generate_soft_label(x, regularization, temperature))
                 soft_target += i_label
                     
             soft_target /= len(self.client_list)
         
-            # Generate student output based on model type
             self.federated_model.train()
 
             student_features = self.federated_model(x)
             student_soft = F.log_softmax(student_features / temperature, dim=1)
             teacher_soft = F.softmax(soft_target / temperature, dim=1)
-            # else:  # resnet18_ft_net
-            #     # For ResNet, can use logit-level distillation if needed
-            #     student_logits = self.federated_model(x)
-            #     student_soft = F.log_softmax(student_logits / temperature, dim=1)
-            #     teacher_soft = F.softmax(soft_target / temperature, dim=1)
-            
-            # Use KL divergence loss for proper knowledge distillation
+
             loss = F.kl_div(student_soft, teacher_soft, reduction='batchmean') * (temperature ** 2)
             loss.backward()
             optimizer.step()

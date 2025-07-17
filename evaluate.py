@@ -20,7 +20,7 @@ args = parser.parse_args()
 
 def get_species_labels():
     """Get species labels for query and gallery"""
-    species_result_dir = os.path.join("/home/wellvw12/fedReID/lep_hyn_exact", args.dataset)
+    species_result_dir = os.path.join("/home/wellvw12/fedReID/lep_hyn_exact2", args.dataset)
     query_csv = os.path.join(species_result_dir, 'query.csv')
     gallery_csv = os.path.join(species_result_dir, 'gallery.csv')
     
@@ -203,7 +203,6 @@ gallery_label = result['gallery_label'][0]
 query_species = None
 gallery_species = None
 
-args.enable_species_eval = True
 if args.enable_species_eval:
     query_species, gallery_species = get_species_labels()
     if query_species is not None and gallery_species is not None:

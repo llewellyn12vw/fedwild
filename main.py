@@ -145,19 +145,13 @@ def train_fd():
         print(f"FedGKD settings - Buffer: {args.fedgkd_buffer_length}, Coeff: {args.fedgkd_distillation_coeff}, Temp: {args.fedgkd_temperature}, Avg: {args.fedgkd_avg_param}")
     print(f"Knowledge Distillation enabled: {args.kd}")
     
-    # Check for incompatible settings
     if args.fedgkd and args.kd:
-        print("WARNING: FedGKD and Knowledge Distillation are both enabled. FedGKD includes its own distillation mechanism.")
-        print("Consider using only one distillation method for optimal results.")
+        print("FedGKD and Knowledge Distillation are both enabled")
     
     rounds = args.total_rounds
     for i in range(rounds):
         print('='*10)
         print("Round Number {}".format(i))
-        if args.fedgkd:
-            print(f"FedGKD buffer size: {len(server.fedgkd_models_buffer)}")
-            if not args.fedgkd_avg_param:
-                print(f"FedGKD-VOTE weights: {len(server.fedgkd_model_weights)} computed")
         print('='*10)
         if i==0:
             server.test(use_cuda)

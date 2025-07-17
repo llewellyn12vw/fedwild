@@ -1,8 +1,0 @@
-image_id,identity,path,bbox,date,orientation,segmentation,species,rarity_class
-2649,0f38564b-babb-43bd-b8e1-3f653ec442bb,leopard.coco/images/train2022/000000002639.jpg,"[0, 746, 648, 593]",,right,,leopard,common
-5925,c9f40dfb-0a95-4038-a148-d4ba180b91e2,leopard.coco/images/train2022/000000005912.jpg,"[971, 704, 1429, 646]",,left,,leopard,abundant
-3555,e954fd06-34b9-442f-99da-833d701216ec,leopard.coco/images/train2022/000000003543.jpg,"[561, 274, 1029, 700]",,right,,leopard,abundant
-3805,f39b36c5-c265-4825-ba79-87f998ed6746,leopard.coco/images/train2022/000000003793.jpg,"[79, 480, 1197, 773]",,left,,leopard,abundant
-2125,09cbe21a-f820-4db4-a314-cb3cc7fa17ff,leopard.coco/images/train2022/000000002120.jpg,"[0, 897, 890, 457]",,right,,leopard,common
-2581,c3799f7d-5ba9-4266-beff-1cb38febbc86,leopard.coco/images/train2022/000000002572.jpg,"[1075, 512, 382, 710]",,front,,leopard,abundant
-2780,87427ec4-0f68-49b0-b2ed-a817c88f1ece,leopard.coco/images/train2022/000000002770.jpg,"[1357, 661, 501, 328]",,right,,leopard,common

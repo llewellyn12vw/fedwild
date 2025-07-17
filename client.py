@@ -75,7 +75,6 @@ class Client():
         if not self.fedgkd_enabled or self.fedgkd_ensemble_teacher is None:
             return 0.0
             
-        # Get teacher features (teacher should already have classifier removed)
         self.fedgkd_ensemble_teacher.eval()
         self.fedgkd_ensemble_teacher = self.fedgkd_ensemble_teacher.to(self.device)
         
@@ -107,10 +106,8 @@ class Client():
     def train(self, federated_model, use_cuda,rnd):
         self.y_err = []
         self.y_loss = []
-
-        # Update learning rate based on round number
+        #rnd = round
         self.update_learning_rate(rnd)
-        
         
         self.model.load_state_dict(federated_model.state_dict())
     
@@ -119,15 +116,13 @@ class Client():
         self.old_classifier = copy.deepcopy(self.classifier)
             
         self.model = self.model.to(self.device)
-
         optimizer = get_optimizer(self.model, self.current_lr)
-        # scheduler = lr_scheduler.StepLR(optimizer, step_size=25, gamma=0.1)
-        # scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=100, eta_min=1e-6)
 
         since = time.time()
-        
+        print('Client', self.cid, 'start training')
         for epoch in range(self.local_epoch):
-
+            print('Epoch {}/{}'.format(epoch, self.local_epoch - 1))
+            print('-' * 10)
             # scheduler.step()
             self.model.train(True)
             running_loss = 0.0
@@ -147,29 +142,18 @@ class Client():
                 
                 optimizer.zero_grad()
 
-                # Forward pass - Standard CrossEntropy loss
                 outputs = self.model(inputs)
                 criterion = nn.CrossEntropyLoss()
                 loss = criterion(outputs, labels)
                 
-                # FedGKD distillation loss
                 if self.fedgkd_enabled:
                     fedgkd_loss = self.compute_fedgkd_distillation_loss(outputs, inputs)
                     loss += fedgkd_loss
                     print(f"client {self.cid} FedGKD distillation loss: {fedgkd_loss.item():.4f}")
                 
-                # Standard predictions
                 _, preds = torch.max(outputs.data, 1)
                                 
                 loss.backward()
-                
-                # DEBUG: Check gradients after backward
-                total_grad_norm = 0.0
-                param_count = 0
-                for p in self.model.parameters():
-                    if p.grad is not None:
-                        total_grad_norm += p.grad.norm().item()
-                        param_count += 1
                                 
                 optimizer.step()
                 running_loss += loss.item() * b
@@ -265,7 +249,7 @@ class Client():
         cmd = (
             f"python evaluate.py --result_dir {result_dir} "
             f"--dataset {self.cid} --output_file local_result.csv "
-            f"--enable_species_eval --species_a leopard --species_b hyena"
+            # f"--enable_species_eval --species_a leopard --species_b hyena"
         )
         os.system(cmd)
         print(f"Client {self.cid} local test results saved to {output_file}")

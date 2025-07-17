@@ -1,2 +1,0 @@
-lr= 0.01 min_lr=1e-5 R=100
-3cl/round, KD_lr_ratio = 0.05, KD/10rounds, temperature= 3 , no temperature annealing
