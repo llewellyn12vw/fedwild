@@ -4,18 +4,18 @@ import pandas as pd
 import numpy as np
 import shutil
 
-def create_client_partition(dataset_name, num_clients, samples_per_client, samples_per_id, num_queries=30, num_gallery=200, output_dir="clients"):
+def create_client_partition_hardcoded(dataset_name, client_configs, target_samples_per_id=None, num_queries=30, num_gallery=200, output_dir="clients", random_seed=42):
     """
     Partition dataset into client folders with train.csv, query.csv, and gallery.csv
     
     Args:
         dataset_name: Name of the dataset to use
-        num_clients: Number of clients (x)
-        samples_per_client: Number of samples per client (s)
-        samples_per_id: Number of samples per identity (z)
+        client_configs: List of integers specifying samples per client [client0_samples, client1_samples, ...]
+        target_samples_per_id: Target samples per identity (optional, will be estimated if None)
         num_queries: Number of query samples (default 30)
         num_gallery: Number of gallery samples (default 200)
         output_dir: Output directory name
+        random_seed: Random seed for reproducible partitioning (default 42)
     """
     
     # Load dataset
@@ -28,112 +28,151 @@ def create_client_partition(dataset_name, num_clients, samples_per_client, sampl
     else:
         raise ValueError(f"Dataset {dataset_name} not supported")
     
-    # Group by identity
+    # Group by identity and get identity sample counts
     identity_groups = df.groupby('identity')
-    
-    # Filter identities that have at least samples_per_id samples
-    valid_identities = []
+    identity_sample_counts = {}
     for identity, group in identity_groups:
-        if len(group) >= samples_per_id:
+        identity_sample_counts[identity] = len(group)
+    
+    # Estimate optimal samples_per_id if not provided
+    if target_samples_per_id is None:
+        total_samples_needed = sum(client_configs)
+        total_identities_available = len(identity_sample_counts)
+        avg_samples_per_identity = df.groupby('identity').size().mean()
+        
+        # Estimate samples_per_id to balance utilization and feasibility
+        estimated_samples_per_id = max(2, min(10, int(avg_samples_per_identity * 0.7)))
+        print(f"Auto-estimated samples_per_id: {estimated_samples_per_id} (avg available: {avg_samples_per_identity:.1f})")
+    else:
+        estimated_samples_per_id = target_samples_per_id
+        print(f"Using target samples_per_id: {estimated_samples_per_id}")
+    
+    # Filter identities that have at least estimated_samples_per_id samples
+    valid_identities = []
+    for identity, count in identity_sample_counts.items():
+        if count >= estimated_samples_per_id:
             valid_identities.append(identity)
     
-    print(f"Found {len(valid_identities)} identities with at least {samples_per_id} samples")
+    print(f"Found {len(valid_identities)} identities with at least {estimated_samples_per_id} samples")
     
     # Create output directory
     if os.path.exists(output_dir):
         shutil.rmtree(output_dir)
     os.makedirs(output_dir)
     
-    # Calculate how many identities per client
-    identities_per_client = samples_per_client // samples_per_id
+    num_clients = len(client_configs)
+    
+    # Calculate how many identities each client needs and adjust samples_per_id for each client
+    client_identity_counts = []
+    client_samples_per_id = []
+    total_identities_needed = 0
+    
+    print("Client allocation:")
+    for i, samples_per_client in enumerate(client_configs):
+        # Start with estimated samples_per_id but adjust to fit target
+        best_samples_per_id = estimated_samples_per_id
+        best_identities_needed = samples_per_client // best_samples_per_id
+        best_actual_samples = best_identities_needed * best_samples_per_id
+        best_diff = abs(samples_per_client - best_actual_samples)
+        
+        # Try different samples_per_id values to get closer to target
+        for test_samples_per_id in range(max(2, estimated_samples_per_id - 3), min(20, estimated_samples_per_id + 4)):
+            test_identities_needed = samples_per_client // test_samples_per_id
+            test_actual_samples = test_identities_needed * test_samples_per_id
+            test_diff = abs(samples_per_client - test_actual_samples)
+            
+            # Prefer solution that gets closer to target samples
+            if test_diff < best_diff:
+                best_samples_per_id = test_samples_per_id
+                best_identities_needed = test_identities_needed
+                best_actual_samples = test_actual_samples
+                best_diff = test_diff
+        
+        client_identity_counts.append(best_identities_needed)
+        client_samples_per_id.append(best_samples_per_id)
+        total_identities_needed += best_identities_needed
+        
+        print(f"  Client {i}: {best_actual_samples}/{samples_per_client} samples, {best_identities_needed} identities, {best_samples_per_id} samples/id")
     
     # Check if we have enough identities
-    total_identities_needed = num_clients * identities_per_client
     if total_identities_needed > len(valid_identities):
         raise ValueError(f"Not enough identities. Need {total_identities_needed}, have {len(valid_identities)}")
     
-    print(f"Each client will have {identities_per_client} identities")
+    print(f"Total identities needed: {total_identities_needed}/{len(valid_identities)} available")
     
-    # Randomly shuffle identities
-    np.random.seed(42)
+    # Randomly shuffle identities with fixed seed for reproducibility
+    np.random.seed(random_seed)
     np.random.shuffle(valid_identities)
     
     # Partition identities to clients (ensuring no overlap)
     client_identities = []
     used_identities = set()
+    current_idx = 0
     
     for i in range(num_clients):
-        start_idx = i * identities_per_client
-        end_idx = start_idx + identities_per_client
-        client_ids = valid_identities[start_idx:end_idx]
+        identities_for_client = client_identity_counts[i]
+        client_ids = valid_identities[current_idx:current_idx + identities_for_client]
         client_identities.append(client_ids)
         used_identities.update(client_ids)
+        current_idx += identities_for_client
     
-    # Get unused identities for test set
-    unused_identities = [id for id in valid_identities if id not in used_identities]
+    # Get unused identities for test set (from ALL identities, not just valid_identities)
+    all_identities = list(identity_sample_counts.keys())
+    unused_identities = [id for id in all_identities if id not in used_identities]
     print(f"Unused identities for test set: {len(unused_identities)}")
     
-    # Prepare test identities for query and gallery
-    query_identities = []
-    gallery_identities = []
-    
-    # Filter identities for query (need at least 2 samples)
-    for identity in unused_identities:
-        identity_samples = df[df['identity'] == identity]
-        if len(identity_samples) >= 2:
-            query_identities.append(identity)
-    
-    # Filter identities for gallery (need at least 3 samples)
+    # Filter test identities that have at least 3 samples (1 query + 2 gallery)
+    test_identities = []
     for identity in unused_identities:
         identity_samples = df[df['identity'] == identity]
         if len(identity_samples) >= 3:
-            gallery_identities.append(identity)
+            test_identities.append(identity)
     
-    print(f"Available for query: {len(query_identities)} identities")
-    print(f"Available for gallery: {len(gallery_identities)} identities")
+    print(f"Available test identities (≥3 samples): {len(test_identities)}")
     
     # Create global query and gallery sets from unused identities
     query_data = []
     gallery_data = []
     
-    # Create query set with 30 samples, min 2 samples per identity
+    # Create query set with 1 sample per identity from test identities
     query_samples_collected = 0
-    np.random.shuffle(query_identities)
+    np.random.seed(random_seed + 1)  # Different seed for query selection
+    np.random.shuffle(test_identities)
     query_identities_used = []
     
-    for identity in query_identities:
+    for i, identity in enumerate(test_identities):
         if query_samples_collected >= num_queries:
             break
         identity_samples = df[df['identity'] == identity]
-        samples_to_take = min(2, len(identity_samples), num_queries - query_samples_collected)
-        query_samples = identity_samples.sample(n=samples_to_take, random_state=42)
+        query_samples = identity_samples.sample(n=1, random_state=random_seed + 100 + i)
         query_data.append(query_samples)
-        query_samples_collected += samples_to_take
+        query_samples_collected += 1
         query_identities_used.append(identity)
     
     # Create gallery set ensuring all query IDs are included
     gallery_samples_collected = 0
     
-    # First, add samples from all query identities to gallery
-    for identity in query_identities_used:
+    # First, add 2 samples from all query identities to gallery
+    for i, identity in enumerate(query_identities_used):
         if gallery_samples_collected >= num_gallery:
             break
         identity_samples = df[df['identity'] == identity]
-        samples_to_take = min(3, len(identity_samples), num_gallery - gallery_samples_collected)
-        gallery_samples = identity_samples.sample(n=samples_to_take, random_state=42)
+        samples_to_take = min(2, len(identity_samples), num_gallery - gallery_samples_collected)
+        gallery_samples = identity_samples.sample(n=samples_to_take, random_state=random_seed + 200 + i)
         gallery_data.append(gallery_samples)
         gallery_samples_collected += samples_to_take
     
-    # Then fill remaining gallery slots with other identities
-    remaining_gallery_identities = [id for id in gallery_identities if id not in query_identities_used]
-    np.random.shuffle(remaining_gallery_identities)
+    # Then fill remaining gallery slots with other test identities
+    remaining_test_identities = [id for id in test_identities if id not in query_identities_used]
+    np.random.seed(random_seed + 2)  # Different seed for remaining gallery selection
+    np.random.shuffle(remaining_test_identities)
     
-    for identity in remaining_gallery_identities:
+    for i, identity in enumerate(remaining_test_identities):
         if gallery_samples_collected >= num_gallery:
             break
         identity_samples = df[df['identity'] == identity]
         samples_to_take = min(3, len(identity_samples), num_gallery - gallery_samples_collected)
-        gallery_samples = identity_samples.sample(n=samples_to_take, random_state=42)
+        gallery_samples = identity_samples.sample(n=samples_to_take, random_state=random_seed + 300 + i)
         gallery_data.append(gallery_samples)
         gallery_samples_collected += samples_to_take
     
@@ -144,8 +183,9 @@ def create_client_partition(dataset_name, num_clients, samples_per_client, sampl
         
         # Get training data for this client
         client_data = []
+        samples_per_id_for_client = client_samples_per_id[client_id]
         for identity in client_identities[client_id]:
-            identity_samples = df[df['identity'] == identity].sample(n=samples_per_id, random_state=42)
+            identity_samples = df[df['identity'] == identity].sample(n=samples_per_id_for_client, random_state=random_seed)
             client_data.append(identity_samples)
         
         # Create train.csv
@@ -162,24 +202,32 @@ def create_client_partition(dataset_name, num_clients, samples_per_client, sampl
             gallery_df = pd.concat(gallery_data, ignore_index=True)
             gallery_df.to_csv(os.path.join(client_dir, 'gallery.csv'), index=False)
         
-        print(f"Client {client_id}: {len(train_df) if client_data else 0} train, {len(query_df) if query_data else 0} query, {len(gallery_df) if gallery_data else 0} gallery samples")
+        actual_samples = len(train_df) if client_data else 0
+        expected_samples = client_configs[client_id]
+        samples_per_id_used = client_samples_per_id[client_id]
+        print(f"Client {client_id}: {actual_samples}/{expected_samples} train ({samples_per_id_used} samples/id), {len(query_df) if query_data else 0} query, {len(gallery_df) if gallery_data else 0} gallery")
+
+# Keep original function for backward compatibility
+def create_client_partition(dataset_name, num_clients, samples_per_client, samples_per_id, num_queries=30, num_gallery=200, output_dir="clients"):
+    """Original function - creates equal-sized clients"""
+    client_configs = [samples_per_client] * num_clients
+    return create_client_partition_hardcoded(dataset_name, client_configs, samples_per_id, num_queries, num_gallery, output_dir)
 
 # Example usage
 if __name__ == "__main__":
-    # Parameters
+    # Hardcoded client configurations - specify exact samples per client
     dataset_name = "LeopardID2022"
-    num_clients = 3
-    samples_per_client = 300
-    samples_per_id = 10
+    client_configs = [300, 300, 300]  # Specify target samples per client
     num_queries = 30
     num_gallery = 200
+    random_seed = 42  # For reproducible results
     
-    create_client_partition(
+    create_client_partition_hardcoded(
         dataset_name=dataset_name,
-        num_clients=num_clients,
-        samples_per_client=samples_per_client,
-        samples_per_id=samples_per_id,
+        client_configs=client_configs,
+        target_samples_per_id=16,  # Auto-estimate optimal samples_per_id
         num_queries=num_queries,
         num_gallery=num_gallery,
-        output_dir="clients"
+        output_dir="../baselines/baseline(3.3.2)",
+        random_seed=random_seed
     )
