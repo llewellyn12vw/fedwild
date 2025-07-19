@@ -1,2 +1,2 @@
 client_id,rank1,mAP,num_queries,num_gallery,species_metrics
-0,0.5,0.4322172087693847,40,201,"{'leopard': {'rank1': 1.0, 'mAP': 0.9299013570041156, 'valid_queries': 20}, 'hyena': {'rank1': 0.0, 'mAP': 0.15151129098529495, 'valid_queries': 18}}"
+0,0.4333333373069763,0.29325292018502214,30,200,

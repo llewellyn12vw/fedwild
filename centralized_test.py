@@ -588,12 +588,12 @@ class CentralizedTester:
 def main():
     parser = argparse.ArgumentParser(description='Centralized Testing for FedReID')
     parser.add_argument('--dataset', default='LeopardID2022', help='Dataset name')
-    parser.add_argument('--data_dir', default="/home/wellvw12/fedReID/lep_hyn_exact", help='Data directory')
+    parser.add_argument('--data_dir', default="/home/wellvw12/baselines/baseline3.3.2", help='Data directory')
     parser.add_argument('--model_type', default='resnet18_ft_net', 
                        choices=['resnet18_ft_net', 'megadescriptor'], help='Model type')
     parser.add_argument('--batch_size', type=int, default=32, help='Batch size')
-    parser.add_argument('--learning_rate', type=float, default=0.005, help='Learning rate')
-    parser.add_argument('--num_epochs', type=int, default=1, help='Number of epochs')
+    parser.add_argument('--learning_rate', type=float, default=0.001, help='Learning rate')
+    parser.add_argument('--num_epochs', type=int, default=10, help='Number of epochs')
     parser.add_argument('--device', default='cuda', help='Device to use')
     parser.add_argument('--experiment_name', default='centralized_test', help='Experiment name')
     parser.add_argument('--client_ids', nargs='+', default=None, 

@@ -3,7 +3,7 @@
 # Run the commands sequentially
 # python main.py --model_name ex2_110
 
-python main.py --ex_name client_rarity_data10ßclient40
+python main.py --ex_name baseline_3.3.3/2
 # python main.py --kd --regularization --model_name exKD && \
 # python main.py --cdw --kd --regularization --ex_name exKD_CDW_hyn4
 # python main.py --kd --regularization --model_name ex2_110_kd && \

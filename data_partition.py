@@ -185,8 +185,11 @@ def create_client_partition_hardcoded(dataset_name, client_configs, target_sampl
         client_data = []
         samples_per_id_for_client = client_samples_per_id[client_id]
         for identity in client_identities[client_id]:
-            identity_samples = df[df['identity'] == identity].sample(n=samples_per_id_for_client, random_state=random_seed)
-            client_data.append(identity_samples)
+            identity_samples = df[df['identity'] == identity]
+            # Take minimum of requested samples or available samples
+            samples_to_take = min(samples_per_id_for_client, len(identity_samples))
+            sampled_identity_samples = identity_samples.sample(n=samples_to_take, random_state=random_seed + client_id * 1000 + hash(identity) % 1000)
+            client_data.append(sampled_identity_samples)
         
         # Create train.csv
         if client_data:
@@ -220,14 +223,13 @@ if __name__ == "__main__":
     client_configs = [300, 300, 300]  # Specify target samples per client
     num_queries = 30
     num_gallery = 200
-    random_seed = 42  # For reproducible results
-    
+    random_seed = 42  # For reproducible results    
     create_client_partition_hardcoded(
         dataset_name=dataset_name,
         client_configs=client_configs,
         target_samples_per_id=16,  # Auto-estimate optimal samples_per_id
         num_queries=num_queries,
         num_gallery=num_gallery,
-        output_dir="../baselines/baseline(3.3.2)",
+        output_dir="../baselines/baseline3.3.3",
         random_seed=random_seed
     )

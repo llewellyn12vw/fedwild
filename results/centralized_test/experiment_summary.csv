@@ -1,2 +1,2 @@
 experiment_name,dataset_name,model_type,num_epochs,learning_rate,batch_size,total_classes,timestamp,average_rank1,average_mAP,final_train_loss,final_train_accuracy
-centralized_test,LeopardID2022,resnet18_ft_net,1,0.005,32,60,2025-07-17 07:26:16,0.5,0.4322172087693847,2.5634940483353357,0.4375
+centralized_test,LeopardID2022,resnet18_ft_net,10,0.001,32,20,2025-07-18 11:59:14,0.4333333373069763,0.29325292018502214,1.0192194978396099,0.7916666666666666
