@@ -4,7 +4,7 @@ import pandas as pd
 import numpy as np
 import shutil
 
-def create_client_partition_hardcoded(dataset_name, client_configs, target_samples_per_id=None, num_queries=30, num_gallery=200, output_dir="clients", random_seed=42):
+def create_client_partition_hardcoded(dataset_name, client_configs, target_samples_per_id=None, num_queries=30, num_gallery=200, output_dir="clients", random_seed=42, query_ids_per_client=15, queries_per_id=2, gallery_samples_per_query_id=12):
     """
     Partition dataset into client folders with train.csv, query.csv, and gallery.csv
     
@@ -12,10 +12,13 @@ def create_client_partition_hardcoded(dataset_name, client_configs, target_sampl
         dataset_name: Name of the dataset to use
         client_configs: List of integers specifying samples per client [client0_samples, client1_samples, ...]
         target_samples_per_id: Target samples per identity (optional, will be estimated if None)
-        num_queries: Number of query samples (default 30)
-        num_gallery: Number of gallery samples (default 200)
+        num_queries: Number of query samples (default 30) - DEPRECATED, calculated from query_ids_per_client * queries_per_id
+        num_gallery: Number of gallery samples (default 200) - DEPRECATED, calculated from query config
         output_dir: Output directory name
         random_seed: Random seed for reproducible partitioning (default 42)
+        query_ids_per_client: Number of query identities per client (default 15)
+        queries_per_id: Number of query samples per identity (default 2)  
+        gallery_samples_per_query_id: Number of gallery samples per query identity (default 12)
     """
     
     # Load dataset
@@ -121,60 +124,87 @@ def create_client_partition_hardcoded(dataset_name, client_configs, target_sampl
     unused_identities = [id for id in all_identities if id not in used_identities]
     print(f"Unused identities for test set: {len(unused_identities)}")
     
-    # Filter test identities that have at least 3 samples (1 query + 2 gallery)
+    # Calculate query/gallery configuration 
+    calculated_num_queries = query_ids_per_client * queries_per_id
+    query_gallery_samples = query_ids_per_client * gallery_samples_per_query_id
+    remaining_gallery_slots = max(0, num_gallery - query_gallery_samples)
+    
+    print(f"Query/Gallery Config: {query_ids_per_client} IDs × {queries_per_id} queries = {calculated_num_queries} queries")
+    print(f"Gallery for query IDs: {query_ids_per_client} × {gallery_samples_per_query_id} = {query_gallery_samples} samples")  
+    print(f"Remaining gallery slots for distractors: {remaining_gallery_slots}")
+    
+    # Filter test identities that have enough samples (queries + gallery per ID)
+    min_samples_per_test_id = queries_per_id + gallery_samples_per_query_id
     test_identities = []
     for identity in unused_identities:
         identity_samples = df[df['identity'] == identity]
-        if len(identity_samples) >= 3:
+        if len(identity_samples) >= min_samples_per_test_id:
             test_identities.append(identity)
     
-    print(f"Available test identities (≥3 samples): {len(test_identities)}")
+    print(f"Available test identities (≥{min_samples_per_test_id} samples): {len(test_identities)}")
     
-    # Create global query and gallery sets from unused identities
+    # Create global query and gallery sets using improved configuration
     query_data = []
     gallery_data = []
     
-    # Create query set with 1 sample per identity from test identities
-    query_samples_collected = 0
-    np.random.seed(random_seed + 1)  # Different seed for query selection
+    # Select query identities - need enough identities for the improved config
+    if len(test_identities) < query_ids_per_client:
+        raise ValueError(f"Not enough test identities. Need {query_ids_per_client}, have {len(test_identities)}")
+    
+    np.random.seed(random_seed + 1)
     np.random.shuffle(test_identities)
-    query_identities_used = []
+    query_identities_used = test_identities[:query_ids_per_client]
     
-    for i, identity in enumerate(test_identities):
-        if query_samples_collected >= num_queries:
-            break
-        identity_samples = df[df['identity'] == identity]
-        query_samples = identity_samples.sample(n=1, random_state=random_seed + 100 + i)
-        query_data.append(query_samples)
-        query_samples_collected += 1
-        query_identities_used.append(identity)
-    
-    # Create gallery set ensuring all query IDs are included
-    gallery_samples_collected = 0
-    
-    # First, add 2 samples from all query identities to gallery
+    # Create query set: queries_per_id samples per identity
     for i, identity in enumerate(query_identities_used):
-        if gallery_samples_collected >= num_gallery:
-            break
         identity_samples = df[df['identity'] == identity]
-        samples_to_take = min(2, len(identity_samples), num_gallery - gallery_samples_collected)
-        gallery_samples = identity_samples.sample(n=samples_to_take, random_state=random_seed + 200 + i)
-        gallery_data.append(gallery_samples)
-        gallery_samples_collected += samples_to_take
+        available_samples = len(identity_samples)
+        
+        if available_samples < queries_per_id + gallery_samples_per_query_id:
+            print(f"Warning: Identity {identity} has only {available_samples} samples, need {queries_per_id + gallery_samples_per_query_id}")
+            continue
+            
+        # Sample queries_per_id for queries
+        query_samples = identity_samples.sample(n=queries_per_id, random_state=random_seed + 100 + i)
+        query_data.append(query_samples)
     
-    # Then fill remaining gallery slots with other test identities
-    remaining_test_identities = [id for id in test_identities if id not in query_identities_used]
-    np.random.seed(random_seed + 2)  # Different seed for remaining gallery selection
-    np.random.shuffle(remaining_test_identities)
-    
-    for i, identity in enumerate(remaining_test_identities):
-        if gallery_samples_collected >= num_gallery:
-            break
+    # Create gallery set: gallery_samples_per_query_id per query identity + distractors
+    for i, identity in enumerate(query_identities_used):
         identity_samples = df[df['identity'] == identity]
-        samples_to_take = min(3, len(identity_samples), num_gallery - gallery_samples_collected)
-        gallery_samples = identity_samples.sample(n=samples_to_take, random_state=random_seed + 300 + i)
-        gallery_data.append(gallery_samples)
-        gallery_samples_collected += samples_to_take
+        
+        # Exclude samples already used for queries
+        query_samples_for_this_id = df[(df['identity'] == identity) & 
+                                      (df.index.isin(query_data[i].index))]
+        remaining_samples = identity_samples[~identity_samples.index.isin(query_samples_for_this_id.index)]
+        
+        # Sample gallery_samples_per_query_id for gallery
+        samples_to_take = min(gallery_samples_per_query_id, len(remaining_samples))
+        if samples_to_take > 0:
+            gallery_samples = remaining_samples.sample(n=samples_to_take, random_state=random_seed + 200 + i)
+            gallery_data.append(gallery_samples)
+    
+    # Add distractor samples to fill remaining gallery slots
+    current_gallery_count = sum(len(gd) for gd in gallery_data)
+    distractor_slots = num_gallery - current_gallery_count
+    
+    if distractor_slots > 0:
+        # Get identities not used for queries  
+        distractor_identities = [id for id in test_identities if id not in query_identities_used]
+        np.random.seed(random_seed + 2)
+        np.random.shuffle(distractor_identities)
+        
+        distractor_samples_collected = 0
+        for i, identity in enumerate(distractor_identities):
+            if distractor_samples_collected >= distractor_slots:
+                break
+                
+            identity_samples = df[df['identity'] == identity]
+            samples_to_take = min(3, len(identity_samples), distractor_slots - distractor_samples_collected)
+            
+            if samples_to_take > 0:
+                distractor_samples = identity_samples.sample(n=samples_to_take, random_state=random_seed + 300 + i)
+                gallery_data.append(distractor_samples)
+                distractor_samples_collected += samples_to_take
     
     # Create client folders and CSV files
     for client_id in range(num_clients):
@@ -218,18 +248,23 @@ def create_client_partition(dataset_name, num_clients, samples_per_client, sampl
 
 # Example usage
 if __name__ == "__main__":
-    # Hardcoded client configurations - specify exact samples per client
+    # Improved configuration for better ReID evaluation metrics
     dataset_name = "LeopardID2022"
-    client_configs = [300, 300, 300]  # Specify target samples per client
-    num_queries = 30
-    num_gallery = 200
-    random_seed = 42  # For reproducible results    
+    client_configs = [800, 30]  # Specify target samples per client
+    random_seed = 42  # For reproducible results
+    
+    # Use improved query/gallery configuration
     create_client_partition_hardcoded(
         dataset_name=dataset_name,
         client_configs=client_configs,
-        target_samples_per_id=16,  # Auto-estimate optimal samples_per_id
-        num_queries=num_queries,
-        num_gallery=num_gallery,
-        output_dir="../baselines/baseline3.3.3",
-        random_seed=random_seed
+        target_samples_per_id=15,
+        # Legacy parameters (will be overridden by improved config)
+        num_queries=30,  
+        num_gallery=250,
+        output_dir="../baselines/baseline800.30_improved",
+        random_seed=random_seed,
+        # Improved configuration parameters
+        query_ids_per_client=15,           # 15 identities for queries
+        queries_per_id=2,                  # 2 queries per identity = 30 total queries
+        gallery_samples_per_query_id=12    # 12 gallery per query ID = 180 + 70 distractors
     )

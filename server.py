@@ -348,7 +348,7 @@ class Server():
         print('We use the scale: %s'%self.multiple_scale)
         
         for dataset in self.data.datasets:
-            # if dataset != 'test': continue
+            if dataset != '0': continue
             self.federated_model = self.federated_model.eval()
             if use_cuda:
                 self.federated_model = self.federated_model.cuda()
