@@ -105,14 +105,15 @@ class Server():
         self.federated_model.eval()
         self.train_loss = []
     
-    def configure_fedgkd(self, buffer_length=5, distillation_coeff=0.1, temperature=1.0, avg_param=True):
-        """Configure FedGKD parameters"""
+    def configure_fedgkd(self, buffer_length=3, distillation_coeff=0.5, temperature=2.0, avg_param=False):
+        """Configure FedGKD parameters with research-backed defaults"""
         self.fedgkd_enabled = True
-        self.fedgkd_buffer_length = buffer_length
-        self.fedgkd_distillation_coeff = distillation_coeff
+        self.fedgkd_buffer_length = buffer_length  # Shorter buffer for more recent knowledge
+        self.fedgkd_distillation_coeff = distillation_coeff  # Higher coefficient for meaningful impact
         self.fedgkd_temperature = temperature
-        self.fedgkd_avg_param = avg_param
-        print(f"FedGKD configured: buffer_length={buffer_length}, distillation_coeff={distillation_coeff}, temperature={temperature}, avg_param={avg_param}")
+        self.fedgkd_avg_param = avg_param  # Default to FedGKD-VOTE for performance weighting
+        print(f"FedGKD configured with CSKD: buffer_length={buffer_length}, distillation_coeff={distillation_coeff}, temperature={temperature}, avg_param={avg_param}")
+        print(f"Using {'FedGKD (simple averaging)' if avg_param else 'FedGKD-VOTE (performance weighting)'}")
     
     def ensemble_historical_models(self):
         """Create ensemble teacher by averaging historical models"""
@@ -348,7 +349,7 @@ class Server():
         print('We use the scale: %s'%self.multiple_scale)
         
         for dataset in self.data.datasets:
-            # if dataset != 'test': continue
+            if dataset != '0': continue
             self.federated_model = self.federated_model.eval()
             if use_cuda:
                 self.federated_model = self.federated_model.cuda()

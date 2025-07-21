@@ -57,7 +57,8 @@ class Client():
                 (1 + math.cos(math.pi * round_num / self.total_rounds)) / 2
         else:
             # Original exponential decay
-            self.current_lr = self.initial_lr * (0.98 ** round_num)
+            # self.current_lr = self.initial_lr * (0.98 ** round_num)
+            pass
         
         if round_num % 10 == 0:  # Print every 10 rounds
             print(f"Client {self.cid}, Round {round_num}: LR = {self.current_lr:.8f}")
@@ -70,44 +71,70 @@ class Client():
         self.fedgkd_temperature = temperature
         print(f"Client {self.cid} received FedGKD ensemble teacher for feature distillation with coeff={distillation_coeff}, temp={temperature}")
     
+    def normalize_features(self, features):
+        """Normalize features for stable distillation"""
+        # L2 normalization for stable cosine similarity computation
+        return F.normalize(features, p=2, dim=1)
+    
     def compute_fedgkd_distillation_loss(self, student_features, inputs):
-        """Compute FedGKD distillation loss using feature-level distillation with MSE loss"""
+        """Compute FedGKD distillation loss using CSKD (Cosine Similarity-guided Knowledge Distillation)"""
         if not self.fedgkd_enabled or self.fedgkd_ensemble_teacher is None:
             return torch.tensor(0.0, device=self.device, requires_grad=True)
             
+        # Proper teacher model gradient isolation
         self.fedgkd_ensemble_teacher.eval()
         self.fedgkd_ensemble_teacher = self.fedgkd_ensemble_teacher.to(self.device)
         
+        # Ensure teacher gradients are blocked
+        for param in self.fedgkd_ensemble_teacher.parameters():
+            param.requires_grad = False
+        
         with torch.no_grad():
-            # Extract features from teacher model (before classifier)
+            # Extract features from teacher model
             teacher_features = self.fedgkd_ensemble_teacher.backbone(inputs)
             teacher_features = self.fedgkd_ensemble_teacher.feature_head(teacher_features)
         
-        # Feature-level distillation using MSE loss
-        # Both student and teacher features should have same dimensions from backbone+feature_head
         if student_features.shape != teacher_features.shape:
             print(f"ERROR: Feature dimension mismatch - Student: {student_features.shape}, Teacher: {teacher_features.shape}")
             return torch.tensor(0.0, device=self.device, requires_grad=True)
         
-        # Debug: Check feature statistics
-        student_norm = torch.norm(student_features, dim=1).mean()
-        teacher_norm = torch.norm(teacher_features, dim=1).mean()
-        cosine_sim = F.cosine_similarity(student_features, teacher_features, dim=1).mean()
+        # Normalize features for stable similarity computation
+        student_features_norm = self.normalize_features(student_features)
+        teacher_features_norm = self.normalize_features(teacher_features.detach())
         
-        # MSE loss between student and teacher features
-        feature_distillation_loss = F.mse_loss(student_features, teacher_features, reduction='mean')
+        # CSKD Loss: L = λ_m * G * MSE + λ_s * (1 - CosineSim)
+        cosine_sim = F.cosine_similarity(student_features_norm, teacher_features_norm, dim=1)
+        cosine_sim_mean = cosine_sim.mean()
         
-        # Apply distillation coefficient
-        distillation_loss = feature_distillation_loss * self.fedgkd_distillation_coeff
+        # Guidance map G based on cosine similarities (reduces capacity gap issues)
+        guidance_map = (1.0 + cosine_sim).unsqueeze(1)  # Shape: [batch_size, 1]
         
-        # Debug output (only occasionally to avoid spam)
+        # MSE loss with guidance
+        mse_loss = F.mse_loss(student_features, teacher_features, reduction='none')  # Per-sample loss
+        guided_mse = (guidance_map * mse_loss).mean()  # Apply guidance and average
+        
+        # Cosine similarity loss (encourages directional alignment)
+        cosine_loss = (1.0 - cosine_sim).mean()
+        
+        # Combined CSKD loss with adaptive weighting
+        lambda_m = 0.7  # MSE weight
+        lambda_s = 0.3  # Cosine similarity weight
+        
+        cskd_loss = lambda_m * guided_mse + lambda_s * cosine_loss
+        distillation_loss = cskd_loss * self.fedgkd_distillation_coeff
+        
+        # Enhanced debugging
         if hasattr(self, '_debug_counter'):
             self._debug_counter += 1
         else:
             self._debug_counter = 0
             
-        if self._debug_counter % 50 == 0:  # Print every 50 batches
-            print(f"  [DEBUG] Student norm: {student_norm:.4f}, Teacher norm: {teacher_norm:.4f}, Cosine sim: {cosine_sim:.4f}, MSE: {feature_distillation_loss:.6f}")
+        if self._debug_counter % 30 == 0:  # Print every 30 batches
+            student_norm = torch.norm(student_features, dim=1).mean()
+            teacher_norm = torch.norm(teacher_features, dim=1).mean()
+            print(f"  [CSKD DEBUG] Student norm: {student_norm:.4f}, Teacher norm: {teacher_norm:.4f}")
+            print(f"  [CSKD DEBUG] Cosine sim: {cosine_sim_mean:.4f}, Guided MSE: {guided_mse:.6f}, Cosine loss: {cosine_loss:.6f}")
+            print(f"  [CSKD DEBUG] Total CSKD: {cskd_loss:.6f}, Final loss: {distillation_loss:.6f}")
         
         return distillation_loss
 

@@ -220,16 +220,16 @@ def create_client_partition(dataset_name, num_clients, samples_per_client, sampl
 if __name__ == "__main__":
     # Hardcoded client configurations - specify exact samples per client
     dataset_name = "LeopardID2022"
-    client_configs = [300, 300, 300]  # Specify target samples per client
+    client_configs = [100, 100]  # Specify target samples per client
     num_queries = 30
     num_gallery = 200
     random_seed = 42  # For reproducible results    
     create_client_partition_hardcoded(
         dataset_name=dataset_name,
         client_configs=client_configs,
-        target_samples_per_id=16,  # Auto-estimate optimal samples_per_id
+        target_samples_per_id=4,  # Auto-estimate optimal samples_per_id
         num_queries=num_queries,
         num_gallery=num_gallery,
-        output_dir="../baselines/baseline3.3.3",
+        output_dir="../baselines/baseline1.1_4perid",
         random_seed=random_seed
     )
