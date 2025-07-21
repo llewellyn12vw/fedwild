@@ -48,7 +48,7 @@ parser.add_argument('--model', default='resnet18_ft_net', type=str, help='model 
 # arguments for federated setting
 parser.add_argument('--local_epoch', default=1, type=int, help='number of local epochs')
 parser.add_argument('--batch_size', default=30, type=int, help='batch size')
-parser.add_argument('--num_of_clients', default=2, type=int, help='number of clients')
+parser.add_argument('--num_of_clients', default=3, type=int, help='number of clients')
 
 # arguments for data transformation
 parser.add_argument('--erasing_p', default=0, type=float, help='Random Erasing probability, in [0,1]')
