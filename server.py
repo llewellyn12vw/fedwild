@@ -122,9 +122,11 @@ class Server():
         if self.fedgkd_avg_param:
             # FedGKD: Average all models in buffer
             ensemble_model = copy.deepcopy(self.fedgkd_models_buffer[0])
+            
             if len(self.fedgkd_models_buffer) > 1:
                 # Average parameters with proper type handling
                 ensemble_state = ensemble_model.state_dict()
+                
                 for key in ensemble_state.keys():
                     if ensemble_state[key].dtype.is_floating_point:
                         ensemble_state[key] = torch.zeros_like(ensemble_state[key])
@@ -162,6 +164,7 @@ class Server():
             
             # Create weighted ensemble
             ensemble_model = copy.deepcopy(self.fedgkd_models_buffer[0])
+            
             ensemble_state = ensemble_model.state_dict()
             
             for key in ensemble_state.keys():
@@ -181,7 +184,6 @@ class Server():
                         # Convert integer tensors to float before weighted addition
                         ensemble_state[key] += weight * model_state[key].float()
             
-            # Note: No need to normalize again since weights are already normalized
             ensemble_model.load_state_dict(ensemble_state)
             return ensemble_model
     
@@ -201,6 +203,13 @@ class Server():
         self.fedgkd_ensemble_teacher = self.ensemble_historical_models()
         
         print(f"FedGKD buffer updated. Buffer size: {len(self.fedgkd_models_buffer)}")
+        
+        # Debug: Validate ensemble teacher
+        if self.fedgkd_ensemble_teacher is not None:
+            param_count = sum(p.numel() for p in self.fedgkd_ensemble_teacher.parameters())
+            print(f"FedGKD ensemble teacher created with {param_count} parameters")
+        else:
+            print("WARNING: FedGKD ensemble teacher is None!")
     
     def send_fedgkd_teacher_to_clients(self, selected_clients):
         """Send ensemble teacher to selected clients"""

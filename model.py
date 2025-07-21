@@ -90,7 +90,8 @@ class ft_net(nn.Module):
         self.model = model_ft
         self.classifier = ClassBlock(512, class_num, droprate)
 
-    def forward(self, x):
+    def backbone(self, x):
+        """Extract backbone features (before classifier)"""
         x = self.model.conv1(x)
         x = self.model.bn1(x)
         x = self.model.relu(x)
@@ -101,6 +102,14 @@ class ft_net(nn.Module):
         x = self.model.layer4(x)
         x = self.model.avgpool(x)
         x = x.view(x.size(0), x.size(1))
+        return x
+
+    def feature_head(self, x):
+        """Identity function for compatibility - backbone already outputs features"""
+        return x
+
+    def forward(self, x):
+        x = self.backbone(x)
         x = self.classifier(x)
         return x
 
@@ -135,39 +144,6 @@ class ArcFaceHead(nn.Module):
 
 
 
-# Replace ft_net class in model.py
-# _megadescriptor
-class megadescriptor(nn.Module):  
-    def __init__(self, class_num, model_variant='S-224', droprate=0.5):
-        super(megadescriptor, self).__init__()
-
-        # Load MegaDescriptor backbone
-        model_name = f'hf-hub:BVRA/MegaDescriptor-{model_variant}'
-        self.backbone = timm.create_model('hf-hub:BVRA/MegaDescriptor-S-224', pretrained=False, num_classes=0)
-
-        # Get embedding dimension
-        with torch.no_grad():
-            dummy_input = torch.randn(1, 3, 224, 224)
-            embedding_dim = self.backbone(dummy_input).shape[1]
-
-        # ArcFace head for training
-        self.arcface_head = ArcFaceHead(embedding_dim, class_num)
-
-        # Feature extraction head (no classifier)
-        self.feature_head = nn.Sequential(
-            nn.BatchNorm1d(embedding_dim),
-            nn.Dropout(0.5)
-        )
-
-    def forward(self, x, labels=None):
-
-        features = self.backbone(x)
-        features = self.feature_head(features)
-
-        if labels is not None:
-            return self.arcface_head(features, labels)
-        else:
-            return features
 
 def save_model(model, class_num, save_path, device='cuda'):
     """

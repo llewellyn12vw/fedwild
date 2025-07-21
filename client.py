@@ -46,7 +46,7 @@ class Client():
         self.fedgkd_enabled = False
         self.fedgkd_ensemble_teacher = None
         self.fedgkd_distillation_coeff = 0.1
-        self.fedgkd_temperature = 1.0
+        self.fedgkd_temperature = 2.0
         # print("class name size",class_names_size[cid])
 
     def update_learning_rate(self, round_num):
@@ -63,43 +63,51 @@ class Client():
             print(f"Client {self.cid}, Round {round_num}: LR = {self.current_lr:.8f}")
     
     def receive_fedgkd_teacher(self, ensemble_teacher, distillation_coeff, temperature):
-        """Receive ensemble teacher model from server for FedGKD"""
+        """Receive ensemble teacher model from server for FedGKD with feature-level distillation"""
         self.fedgkd_enabled = True
         self.fedgkd_ensemble_teacher = copy.deepcopy(ensemble_teacher)
         self.fedgkd_distillation_coeff = distillation_coeff
         self.fedgkd_temperature = temperature
-        print(f"Client {self.cid} received FedGKD ensemble teacher with coeff={distillation_coeff}, temp={temperature}")
+        print(f"Client {self.cid} received FedGKD ensemble teacher for feature distillation with coeff={distillation_coeff}, temp={temperature}")
     
-    def compute_fedgkd_distillation_loss(self, student_output, inputs):
-        """Compute FedGKD distillation loss using feature-level distillation"""
+    def compute_fedgkd_distillation_loss(self, student_features, inputs):
+        """Compute FedGKD distillation loss using feature-level distillation with MSE loss"""
         if not self.fedgkd_enabled or self.fedgkd_ensemble_teacher is None:
-            return 0.0
+            return torch.tensor(0.0, device=self.device, requires_grad=True)
             
         self.fedgkd_ensemble_teacher.eval()
         self.fedgkd_ensemble_teacher = self.fedgkd_ensemble_teacher.to(self.device)
         
         with torch.no_grad():
-            teacher_features = self.fedgkd_ensemble_teacher(inputs)
+            # Extract features from teacher model (before classifier)
+            teacher_features = self.fedgkd_ensemble_teacher.backbone(inputs)
+            teacher_features = self.fedgkd_ensemble_teacher.feature_head(teacher_features)
         
-        # For ResNet, if student_output is logits, we need to get features
-        if student_output.shape[1] != teacher_features.shape[1]:
-            # Get features by running input through model without classifier
-            # We need to maintain gradients, so don't use torch.no_grad()
-            original_classifier = self.model.classifier
-            self.model.classifier = nn.Sequential()
-            student_features = self.model(inputs)
-            self.model.classifier = original_classifier
-        else:
-            student_features = student_output
-        
-        # Ensure both have same dimensions
+        # Feature-level distillation using MSE loss
+        # Both student and teacher features should have same dimensions from backbone+feature_head
         if student_features.shape != teacher_features.shape:
-            print(f"Warning: Feature dimension mismatch - Student: {student_features.shape}, Teacher: {teacher_features.shape}")
+            print(f"ERROR: Feature dimension mismatch - Student: {student_features.shape}, Teacher: {teacher_features.shape}")
             return torch.tensor(0.0, device=self.device, requires_grad=True)
         
-        # Use MSE loss for feature-level distillation (more stable than KL for features)
-        mse_loss = F.mse_loss(student_features, teacher_features)
-        distillation_loss = mse_loss * self.fedgkd_distillation_coeff
+        # Debug: Check feature statistics
+        student_norm = torch.norm(student_features, dim=1).mean()
+        teacher_norm = torch.norm(teacher_features, dim=1).mean()
+        cosine_sim = F.cosine_similarity(student_features, teacher_features, dim=1).mean()
+        
+        # MSE loss between student and teacher features
+        feature_distillation_loss = F.mse_loss(student_features, teacher_features, reduction='mean')
+        
+        # Apply distillation coefficient
+        distillation_loss = feature_distillation_loss * self.fedgkd_distillation_coeff
+        
+        # Debug output (only occasionally to avoid spam)
+        if hasattr(self, '_debug_counter'):
+            self._debug_counter += 1
+        else:
+            self._debug_counter = 0
+            
+        if self._debug_counter % 50 == 0:  # Print every 50 batches
+            print(f"  [DEBUG] Student norm: {student_norm:.4f}, Teacher norm: {teacher_norm:.4f}, Cosine sim: {cosine_sim:.4f}, MSE: {feature_distillation_loss:.6f}")
         
         return distillation_loss
 
@@ -142,14 +150,20 @@ class Client():
                 
                 optimizer.zero_grad()
 
+                # Extract features for FedGKD distillation
+                student_features = self.model.backbone(inputs)
+                student_features = self.model.feature_head(student_features)
+                
+                # Get final outputs for classification loss
                 outputs = self.model(inputs)
                 criterion = nn.CrossEntropyLoss()
                 loss = criterion(outputs, labels)
                 
                 if self.fedgkd_enabled:
-                    fedgkd_loss = self.compute_fedgkd_distillation_loss(outputs, inputs)
+                    classification_loss = loss.item()
+                    fedgkd_loss = self.compute_fedgkd_distillation_loss(student_features, inputs)
                     loss += fedgkd_loss
-                    print(f"client {self.cid} FedGKD distillation loss: {fedgkd_loss.item():.4f}")
+                    print(f"Client {self.cid} - Classification: {classification_loss:.4f}, FedGKD: {fedgkd_loss.item():.4f}, Total: {loss.item():.4f}, Ratio: {fedgkd_loss.item()/classification_loss:.3f}")
                 
                 _, preds = torch.max(outputs.data, 1)
                                 
