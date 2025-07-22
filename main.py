@@ -41,14 +41,14 @@ parser.add_argument('--stride', default=2, type=int, help='stride')
 parser.add_argument('--multi_species', action='store_true', help='use multiple species')
 parser.add_argument('--metadata', default=None, type=str, help='metadata type: leopard, hyena, sea_turtle, cow')
 
-parser.add_argument('--lr', default=0.001, type=float, help='learning rate')
+parser.add_argument('--lr', default=0.005, type=float, help='learning rate')
 parser.add_argument('--drop_rate', default=0.03, type=float, help='drop rate')
 parser.add_argument('--model', default='resnet18_ft_net', type=str, help='model name')
 
 # arguments for federated setting
 parser.add_argument('--local_epoch', default=1, type=int, help='number of local epochs')
 parser.add_argument('--batch_size', default=30, type=int, help='batch size')
-parser.add_argument('--num_of_clients', default=3, type=int, help='number of clients')
+parser.add_argument('--num_of_clients', default=2, type=int, help='number of clients')
 
 # arguments for data transformation
 parser.add_argument('--erasing_p', default=0, type=float, help='Random Erasing probability, in [0,1]')

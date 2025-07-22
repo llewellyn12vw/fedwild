@@ -129,20 +129,52 @@ class Client():
         else:
             self._debug_counter = 0
             
-        if self._debug_counter % 30 == 0:  # Print every 30 batches
+        if self._debug_counter % 5 == 0:  # Print every 30 batches
             student_norm = torch.norm(student_features, dim=1).mean()
             teacher_norm = torch.norm(teacher_features, dim=1).mean()
+
+            result_dir = os.path.join(self.project_dir, 'model',self.experiment_name, f'client_{self.cid}')
+            os.makedirs(result_dir, exist_ok=True)
+
+            csv_file = os.path.join(result_dir, 'cosine_sim.csv')
+            file_exists = os.path.isfile(csv_file)
+            row_data = [f"{cosine_sim_mean:.4f}",f"{student_norm:.4f}", f"{teacher_norm:.4f}"]  # Store round and last loss value
+
+            with open(csv_file, 'a', newline='') as f:
+                writer = csv.writer(f)
+                if not file_exists:
+                    header = ['cosine_sim','student_norm','teacher_norm']  # Replace with your column names
+                    writer.writerow(header)
+                writer.writerow(row_data)
+
             print(f"  [CSKD DEBUG] Student norm: {student_norm:.4f}, Teacher norm: {teacher_norm:.4f}")
             print(f"  [CSKD DEBUG] Cosine sim: {cosine_sim_mean:.4f}, Guided MSE: {guided_mse:.6f}, Cosine loss: {cosine_loss:.6f}")
             print(f"  [CSKD DEBUG] Total CSKD: {cskd_loss:.6f}, Final loss: {distillation_loss:.6f}")
         
         return distillation_loss
-
+    
+    def compute_cosine_sim(self, student_features, teacher_features):
+        """Compute cosine similarity between student and teacher features"""
+        if student_features.shape != teacher_features.shape:
+            print(f"ERROR: Feature dimension mismatch - Student: {student_features.shape}, Teacher: {teacher_features.shape}")
+            return torch.tensor(0.0, device=self.device, requires_grad=True)
+        
+        # Normalize features for stable similarity computation
+        student_features_norm = self.normalize_features(student_features)
+        teacher_features_norm = self.normalize_features(teacher_features.detach())
+        
+        cosine_sim = F.cosine_similarity(student_features_norm, teacher_features_norm, dim=1)
+        return cosine_sim.mean()
+    
     def train(self, federated_model, use_cuda,rnd):
         self.y_err = []
         self.y_loss = []
         #rnd = round
         self.update_learning_rate(rnd)
+        
+        # Store global model state for cosine similarity computation
+        global_model_copy = copy.deepcopy(federated_model)
+        global_model_copy = global_model_copy.to(self.device)
         
         self.model.load_state_dict(federated_model.state_dict())
     
@@ -190,7 +222,7 @@ class Client():
                     classification_loss = loss.item()
                     fedgkd_loss = self.compute_fedgkd_distillation_loss(student_features, inputs)
                     loss += fedgkd_loss
-                    print(f"Client {self.cid} - Classification: {classification_loss:.4f}, FedGKD: {fedgkd_loss.item():.4f}, Total: {loss.item():.4f}, Ratio: {fedgkd_loss.item()/classification_loss:.3f}")
+                    # print(f"Client {self.cid} - Classification: {classification_loss:.4f}, FedGKD: {fedgkd_loss.item():.4f}, Total: {loss.item():.4f}, Ratio: {fedgkd_loss.item()/classification_loss:.3f}")
                 
                 _, preds = torch.max(outputs.data, 1)
                                 
@@ -220,7 +252,45 @@ class Client():
         print('Client', self.cid, 'Training complete in {:.0f}m {:.0f}s'.format(
             time_elapsed // 60, time_elapsed % 60))
         
+        # Compute cosine similarity between global and local model every 10 rounds when FedGKD is not active
+        if (rnd == 0 or rnd % 10 == 0) and not self.fedgkd_enabled:
+            self.model.eval()
+            global_model_copy.eval()
+            
+            # Sample a batch from training data to compute feature similarity
+            sample_data = next(iter(self.train_loader))
+            sample_inputs, _ = sample_data
+            if use_cuda:
+                sample_inputs = sample_inputs.cuda()
+            
+            with torch.no_grad():
+                # Extract features from both models
+                local_features = self.model.backbone(sample_inputs)
+                local_features = self.model.feature_head(local_features)
                 
+                global_features = global_model_copy.backbone(sample_inputs)
+                global_features = global_model_copy.feature_head(global_features)
+                
+                # Compute cosine similarity
+                cosine_similarity = self.compute_cosine_sim(local_features, global_features)
+                
+                print(f"Client {self.cid} Round {rnd}: Global-Local Cosine Similarity = {cosine_similarity:.4f}")
+                
+                # Log to CSV file
+                result_dir = os.path.join(self.project_dir, 'model', self.experiment_name, f'client_{self.cid}')
+                os.makedirs(result_dir, exist_ok=True)
+                
+                csv_file = os.path.join(result_dir, 'global_local_cosine_sim.csv')
+                file_exists = os.path.isfile(csv_file)
+                row_data = [self.cid, rnd, f"{cosine_similarity:.6f}"]
+                
+                with open(csv_file, 'a', newline='') as f:
+                    writer = csv.writer(f)
+                    if not file_exists:
+                        header = ['client', 'round', 'global_local_cosine_sim']
+                        writer.writerow(header)
+                    writer.writerow(row_data)
+        
         # Store classifier and remove for federated aggregation
         self.classifier = self.model.classifier
         self.distance = self.optimization.cdw_feature_distance(federated_model, self.old_classifier, self.model)
