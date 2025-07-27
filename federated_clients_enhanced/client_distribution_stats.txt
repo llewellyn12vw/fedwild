@@ -4,65 +4,59 @@ FEDERATED DATA DISTRIBUTION STATISTICS
 
 CONFIGURATION:
 ------------------------------
-Dataset: leopard
-Number of clients: 5
+Dataset: macaque
+Number of clients: 3
 Dirichlet alpha: 0.4
-Query size: 30 IDs
-Samples per query ID: 1
-Samples per gallery ID: 3
+Query size: 10 IDs
+Samples per query ID: 2
+Samples per gallery ID: 4
 Minimum samples per ID: 2
-Maximum samples per ID: 70
+Maximum samples per ID: 40
 Minimum training samples per ID: 2
 Random seed: 56
 
 OVERALL STATISTICS:
 ------------------------------
-Total samples: 4482
-Total unique IDs: 381
+Total samples: 1360
+Total unique IDs: 34
 
 SPLIT DISTRIBUTION:
 ------------------------------
-Train: 4362 samples, 376 unique IDs
-Query: 30 samples, 30 unique IDs
-Gallery: 90 samples, 30 unique IDs
+Train: 1300 samples, 34 unique IDs
+Query: 20 samples, 10 unique IDs
+Gallery: 40 samples, 10 unique IDs
 
 CLIENT DISTRIBUTION:
 ------------------------------
-Client 0: 1022 samples, 83 unique IDs
-  - Samples per ID: min=1, max=70, mean=12.3
-  - Top 5 IDs: ['81ad30d8-15c7-492e-918b-d9592d8f3f08', '2112bdfc-4c7c-4c2a-8cfa-28ea45bf1599', '271c8bfa-8dff-44d5-9d4e-72007d7ba700', 'f54eeeb1-cab5-454a-adf3-fcd8c4a2b4a5', '9ec659d2-2183-4f55-8882-1fe87e13d5f4']
-Client 1: 303 samples, 16 unique IDs
-  - Samples per ID: min=2, max=70, mean=18.9
-  - Top 5 IDs: ['9dce1bc1-361d-45d7-9db1-2a143c732b66', 'a1d0fd59-883e-4e53-a313-6264f2f247fa', '92979236-b885-4aa2-8f22-da447159f85a', '69a226bb-64a0-4357-9f62-dcc80f403579', '64bf337a-87a2-4a45-bd38-7ad66da3a95e']
-Client 2: 37 samples, 6 unique IDs
-  - Samples per ID: min=2, max=23, mean=6.2
-  - Top 5 IDs: ['559a4a0f-4fa5-46f6-af56-f7aa36bf35dd', 'a8acd24e-546b-4e61-a1cc-9043a843a9a2', '6e7eec56-a2b2-41d1-a83e-dec0cd9f6dc3', '3ebf6f31-dd6d-4da8-87b4-053065bd751c', '089a4176-f8f9-42b7-82c3-3e3933c0f91f']
-Client 3: 2888 samples, 258 unique IDs
-  - Samples per ID: min=1, max=70, mean=11.2
-  - Top 5 IDs: ['951f3bbf-f9f1-4ace-ab20-ef153169384f', '2e0d0629-af46-40d0-bb63-922a27af5ab6', 'a566ddcd-8bf8-4f8e-9a61-f434b01b0799', '8e37baa5-c486-4056-9db8-5d00863406bc', 'c9f40dfb-0a95-4038-a148-d4ba180b91e2']
-Client 4: 112 samples, 13 unique IDs
-  - Samples per ID: min=1, max=53, mean=8.6
-  - Top 5 IDs: ['6948d96b-0b5c-422b-a65d-e5098b613b81', '3c375f5a-0894-41a5-8af0-0e20ce760368', 'acf48be9-1b25-40c0-9c5f-5218ba5c3920', 'ab07eaed-765a-4faa-b4ce-43992596395a', '1265fe94-c093-4beb-9cf2-28b7eb458cab']
+Client 0: 1026 samples, 27 unique IDs
+  - Samples per ID: min=34, max=40, mean=38.0
+  - Top 5 IDs: ['Teal', 'Venus', 'Shirley', 'Tea', 'Sizzle']
+Client 1: 200 samples, 5 unique IDs
+  - Samples per ID: min=40, max=40, mean=40.0
+  - Top 5 IDs: ['Rupee', 'Thyme', 'Melody', 'Umbrella', 'Lala']
+Client 2: 74 samples, 2 unique IDs
+  - Samples per ID: min=34, max=40, mean=37.0
+  - Top 5 IDs: ['Mindy', 'Tamara']
 
 HETEROGENEITY ANALYSIS:
 ------------------------------
 Sample distribution across clients:
-  - Min: 37 samples
-  - Max: 2888 samples
-  - Mean: 872.4 samples
-  - Std: 1066.3 samples
-  - Coefficient of Variation: 1.222
+  - Min: 74 samples
+  - Max: 1026 samples
+  - Mean: 433.3 samples
+  - Std: 422.2 samples
+  - Coefficient of Variation: 0.974
 
 ID distribution across clients:
-  - Min: 6 IDs
-  - Max: 258 IDs
-  - Mean: 75.2 IDs
-  - Std: 95.5 IDs
-  - Coefficient of Variation: 1.270
+  - Min: 2 IDs
+  - Max: 27 IDs
+  - Mean: 11.3 IDs
+  - Std: 11.1 IDs
+  - Coefficient of Variation: 0.983
 
 DATA OVERLAP ANALYSIS:
 ------------------------------
-Total unique training IDs across all clients: 376
+Total unique training IDs across all clients: 34
 Overlapping IDs between clients: 0
 Data isolation: Perfect
 

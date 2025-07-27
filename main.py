@@ -36,11 +36,12 @@ parser.add_argument('--ex_name',default='3LeopardSame', type=str, help='output r
 parser.add_argument('--project_dir',default='.', type=str, help='project path')
 parser.add_argument('--data_dir',default='/home/wellvw12/baselines/baseline3.3.2',type=str, help='training dir path')
 # parser.add_argument('--datasets',default='Market,DukeMTMC-reID,cuhk03-np-detected,cuhk01,MSMT17,viper,prid,3dpes,ilids',type=str, help='datasets used')
-parser.add_argument('--datasets',default='0,1,3',type=str, help='datasets used')
+parser.add_argument('--datasets',default='0,1,2',type=str, help='datasets used')
 parser.add_argument('--train_all', action='store_true', help='use all training data' )
 parser.add_argument('--stride', default=2, type=int, help='stride')
 parser.add_argument('--dataset_type', default='leopard', type=str, choices=['leopard', 'macaque', 'hyena', 'cow'], help='dataset type to use')
 parser.add_argument('--metadata_file', default="/home/wellvw12/fedwild/federated_clients_enhanced/metadata.csv", type=str, help='path to unified metadata.csv file with client allocation')
+parser.add_argument('--image_size', default=128, type=int, help='input image size for training and testing')
 
 parser.add_argument('--lr', default=0.001, type=float, help='learning rate')
 parser.add_argument('--drop_rate', default=0.03, type=float, help='drop rate')
@@ -90,7 +91,7 @@ def train_fd():
 
     set_random_seed(1)
 
-    data = Data(args.datasets, args.data_dir, args.batch_size, args.erasing_p, args.color_jitter, args.train_all, args.dataset_type, args.metadata_file)
+    data = Data(args.datasets, args.data_dir, args.batch_size, args.erasing_p, args.color_jitter, args.train_all, args.dataset_type, args.metadata_file, args.image_size)
     data.preprocess()
     
     clients = {}
@@ -201,8 +202,8 @@ def test_standalone_client(client, model, device, save_dir):
     
     
     with torch.no_grad():
-        gallery_feature = extract_feature(model, test_loaders['gallery'], [1.0])
-        query_feature = extract_feature(model, test_loaders['query'], [1.0])
+        gallery_feature = extract_feature(model, test_loaders['gallery'], [1.0], data.image_size)
+        query_feature = extract_feature(model, test_loaders['query'], [1.0], data.image_size)
 
     model.classifier.classifier = original_classifier
 
@@ -315,7 +316,7 @@ def standalone_training():
     
     set_random_seed(1)
     
-    data = Data(args.datasets, args.data_dir, args.batch_size, args.erasing_p, args.color_jitter, args.train_all, args.dataset_type, args.metadata_file)
+    data = Data(args.datasets, args.data_dir, args.batch_size, args.erasing_p, args.color_jitter, args.train_all, args.dataset_type, args.metadata_file, args.image_size)
     data.preprocess()
     
     # Train each client independently
@@ -367,7 +368,7 @@ def centralized_training():
     
     set_random_seed(1)
     
-    data = Data(args.datasets, args.data_dir, args.batch_size, args.erasing_p, args.color_jitter, args.train_all, args.dataset_type, args.metadata_file)
+    data = Data(args.datasets, args.data_dir, args.batch_size, args.erasing_p, args.color_jitter, args.train_all, args.dataset_type, args.metadata_file, args.image_size)
     data.preprocess()
     
     # Create centralized model directory
@@ -546,8 +547,8 @@ def test_centralized_on_all_clients(model, data, device, save_dir, epoch):
             print(f"Testing centralized model on client {cid} data...")
             
             with torch.no_grad():
-                gallery_feature = extract_feature(model, test_loaders['gallery'], [1.0])
-                query_feature = extract_feature(model, test_loaders['query'], [1.0])
+                gallery_feature = extract_feature(model, test_loaders['gallery'], [1.0], data.image_size)
+                query_feature = extract_feature(model, test_loaders['query'], [1.0], data.image_size)
             
             # Prepare result for evaluate.py
             result = {

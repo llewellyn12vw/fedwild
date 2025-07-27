@@ -376,8 +376,8 @@ class Server():
                 self.federated_model = self.federated_model.cuda()
             
             with torch.no_grad():
-                gallery_feature = extract_feature(self.federated_model, self.data.test_loaders[dataset]['gallery'], self.multiple_scale)
-                query_feature = extract_feature(self.federated_model, self.data.test_loaders[dataset]['query'], self.multiple_scale)
+                gallery_feature = extract_feature(self.federated_model, self.data.test_loaders[dataset]['gallery'], self.multiple_scale, self.data.image_size)
+                query_feature = extract_feature(self.federated_model, self.data.test_loaders[dataset]['query'], self.multiple_scale, self.data.image_size)
 
             result = {
                 'gallery_f': gallery_feature.numpy(),
@@ -409,10 +409,10 @@ class Server():
         optimizer = optim.SGD(self.federated_model.parameters(), lr=self.current_kd_lr, weight_decay=5e-4, momentum=0.9, nesterov=True)
         self.federated_model.train().to(self.device)
 
-        # Get feature dimension dynamically from model
+        # Get feature dimension dynamically from model using actual image size
         with torch.no_grad():
             self.federated_model.eval()
-            dummy_input = torch.randn(1, 3, 224, 224).to(self.device)
+            dummy_input = torch.randn(1, 3, self.data.image_size, self.data.image_size).to(self.device)
             dummy_output = self.federated_model(dummy_input)
             feature_dim = dummy_output.shape[1]
 

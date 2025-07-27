@@ -5,7 +5,7 @@ FEDERATED LEARNING EXPERIMENT SUMMARY
 EXPERIMENT INFORMATION:
 ----------------------------------------
 Name: leopardEx1
-Timestamp: 2025-07-27T14:12:44.502150
+Timestamp: 2025-07-27T14:32:12.685958
 Total Rounds: 50
 
 DATASET CONFIGURATION:
@@ -27,7 +27,7 @@ TRAINING CONFIGURATION:
 Learning Rate: 0.001
 Batch Size: 32
 Local Epochs: 1
-Number of Clients: 2
+Number of Clients: 3
 Cosine Annealing: False
 
 OPTIMIZATION TECHNIQUES:
@@ -39,8 +39,8 @@ FEDGKD CONFIGURATION:
 ----------------------------------------
 FedGKD Enabled: True
   - Buffer Length: 5
-  - Distillation Coefficient: 0.8
-  - Temperature: 3.0
+  - Distillation Coefficient: 0.7
+  - Temperature: 2.0
   - Average Parameters: True
   - Start Round: 5
   - Strategy: FedGKD (simple averaging)
@@ -60,5 +60,5 @@ CUDA Version: 12.6
 GPU Count: 1
 
 ================================================================================
-Configuration saved at: 2025-07-27T14:12:44.504653
+Configuration saved at: 2025-07-27T14:32:12.688659
 ================================================================================

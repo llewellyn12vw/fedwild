@@ -24,7 +24,7 @@ class ImageDataset(Dataset):
 
 
 class Data():
-    def __init__(self, datasets, data_dir, batch_size, erasing_p, color_jitter, train_all, dataset_type, metadata_file=None):
+    def __init__(self, datasets, data_dir, batch_size, erasing_p, color_jitter, train_all, dataset_type, metadata_file=None, image_size=128):
         self.datasets = datasets.split(',')
         self.batch_size = batch_size
         self.erasing_p = erasing_p
@@ -33,6 +33,7 @@ class Data():
         self.train_all = '_all' if train_all else ''
         self.dataset_type = dataset_type
         self.metadata_file = metadata_file
+        self.image_size = image_size  # Dynamic image size
         
         # Load unified metadata if provided
         if self.metadata_file and os.path.exists(self.metadata_file):
@@ -47,16 +48,16 @@ class Data():
 
     def transform(self):
         transform_train = [
-                transforms.Resize((224,224), interpolation=3),
+                transforms.Resize((self.image_size, self.image_size), interpolation=3),
                 transforms.Pad(10),
-                transforms.RandomCrop((224,224)),
+                transforms.RandomCrop((self.image_size, self.image_size)),
                 transforms.RandomHorizontalFlip(),
                 transforms.ToTensor(),
                 transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
                 ]
 
         transform_val = [
-                transforms.Resize(size=(224,224),interpolation=3),
+                transforms.Resize(size=(self.image_size, self.image_size), interpolation=3),
                 transforms.ToTensor(),
                 transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
                 ]

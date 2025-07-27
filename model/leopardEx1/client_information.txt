@@ -8,31 +8,31 @@ Client IDs: ['0', '1', '3']
 CLIENT DATA DISTRIBUTION:
 ------------------------------
 Client 0:
-  - Training Samples: 1022
+  - Training Samples: 821
   - Unique Classes: 83
-  - Samples per Class (avg): 12.3
+  - Samples per Class (avg): 9.9
 
 Client 1:
-  - Training Samples: 303
+  - Training Samples: 221
   - Unique Classes: 16
-  - Samples per Class (avg): 18.9
+  - Samples per Class (avg): 13.8
 
 Client 3:
-  - Training Samples: 2888
-  - Unique Classes: 258
-  - Samples per Class (avg): 11.2
+  - Training Samples: 2398
+  - Unique Classes: 256
+  - Samples per Class (avg): 9.4
 
 OVERALL STATISTICS:
 ------------------------------
-Total Training Samples: 4213
-Total Classes (sum): 357
-Average Samples per Client: 1404.3
-Average Classes per Client: 119.0
+Total Training Samples: 3440
+Total Classes (sum): 355
+Average Samples per Client: 1146.7
+Average Classes per Client: 118.3
 
 TEST DATA INFORMATION:
 ------------------------------
-Query Samples: 30
-Gallery Samples: 90
+Query Samples: 40
+Gallery Samples: 120
 Note: All clients use shared query/gallery splits for evaluation
 
 ============================================================

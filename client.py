@@ -341,8 +341,8 @@ class Client():
         from utils import extract_feature
 
         with torch.no_grad():
-            gallery_feature = extract_feature(model, test_loaders['gallery'], [1.0])
-            query_feature = extract_feature(model, test_loaders['query'], [1.0])
+            gallery_feature = extract_feature(model, test_loaders['gallery'], [1.0], self.data.image_size)
+            query_feature = extract_feature(model, test_loaders['query'], [1.0], self.data.image_size)
 
         result = {
             'gallery_f': gallery_feature.cpu().numpy(),

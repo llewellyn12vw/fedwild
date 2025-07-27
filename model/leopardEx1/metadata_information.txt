@@ -7,20 +7,20 @@ Metadata CSV Path: /home/wellvw12/fedwild/federated_clients_enhanced/metadata.cs
 
 METADATA STATISTICS:
 ------------------------------
-Total Samples: 4482
+Total Samples: 3744
 Total Unique IDs: 381
 
 Split Distribution:
-  train: 4362 samples (376 unique IDs)
-  gallery: 90 samples (30 unique IDs)
-  query: 30 samples (30 unique IDs)
+  train: 3584 samples (374 unique IDs)
+  gallery: 120 samples (40 unique IDs)
+  query: 40 samples (40 unique IDs)
 
 Client Distribution:
-  Shared (query/gallery): 120 samples
-  Client 0: 1022 training samples (83 unique IDs)
-  Client 1: 303 training samples (16 unique IDs)
-  Client 2: 37 training samples (6 unique IDs)
-  Client 3: 2888 training samples (258 unique IDs)
-  Client 4: 112 training samples (13 unique IDs)
+  Shared (query/gallery): 160 samples
+  Client 0: 821 training samples (83 unique IDs)
+  Client 1: 221 training samples (16 unique IDs)
+  Client 2: 19 training samples (6 unique IDs)
+  Client 3: 2398 training samples (256 unique IDs)
+  Client 4: 125 training samples (13 unique IDs)
 
 ============================================================

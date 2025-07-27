@@ -69,12 +69,12 @@ def fliplr(img):
     img_flip = img.index_select(3,inv_idx)
     return img_flip
 
-def extract_feature(model, dataloaders, ms):
+def extract_feature(model, dataloaders, ms, image_size=128):
     features = torch.FloatTensor()
     
-    # Get feature dimension dynamically from model
+    # Get feature dimension dynamically from model using actual image size
     with torch.no_grad():
-        dummy_input = torch.randn(1, 3, 224, 224).cuda()
+        dummy_input = torch.randn(1, 3, image_size, image_size).cuda()
         dummy_output = model(dummy_input)
         feature_dim = dummy_output.shape[1]
     

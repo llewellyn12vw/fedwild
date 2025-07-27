@@ -39,7 +39,8 @@ def save_experiment_config(args, experiment_dir: str, additional_info: Dict[str,
             "dataset_type": args.dataset_type,
             "datasets": args.datasets,
             "metadata_file": args.metadata_file,
-            "train_all": args.train_all
+            "train_all": args.train_all,
+            "image_size": args.image_size
         },
         "model_config": {
             "model": args.model,
@@ -136,7 +137,8 @@ def save_experiment_summary(config: Dict[str, Any], experiment_dir: str):
         f.write(f"Dataset Type: {dataset_info['dataset_type']}\n")
         f.write(f"Client Datasets: {dataset_info['datasets']}\n")
         f.write(f"Metadata File: {dataset_info['metadata_file']}\n")
-        f.write(f"Use All Training Data: {dataset_info['train_all']}\n\n")
+        f.write(f"Use All Training Data: {dataset_info['train_all']}\n")
+        f.write(f"Image Size: {dataset_info['image_size']}x{dataset_info['image_size']}\n\n")
         
         # Model Config
         model_info = config["model_config"]
