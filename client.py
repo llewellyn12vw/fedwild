@@ -318,16 +318,18 @@ class Client():
 
     def test(self, use_cuda=True):
         """
-        Test the local model on the client's query/gallery set and store results in local_result.csv.
+        Test the local model on shared query/gallery split and store results in local_result.csv.
+        All clients now use the same query/gallery split for consistent evaluation.
         """
-        # Check if test loaders exist for this client
-        if not hasattr(self.data, "test_loaders") or self.cid not in self.data.test_loaders:
-            print(f"No test data for client {self.cid}")
+        # Check if test loaders exist - use shared split (dataset '0' contains shared query/gallery)
+        if not hasattr(self.data, "test_loaders") or '0' not in self.data.test_loaders:
+            print(f"No shared test data available for evaluation")
             return
 
-        test_loaders = self.data.test_loaders[self.cid]
+        # Use shared query/gallery split (dataset '0') instead of client-specific splits
+        test_loaders = self.data.test_loaders['0']
         if 'query' not in test_loaders or 'gallery' not in test_loaders:
-            print(f"No query/gallery split for client {self.cid}")
+            print(f"No shared query/gallery split available")
             return
 
         model = self.model.eval()
@@ -344,9 +346,9 @@ class Client():
 
         result = {
             'gallery_f': gallery_feature.cpu().numpy(),
-            'gallery_label': self.data.gallery_meta[self.cid]['labels'],
+            'gallery_label': self.data.gallery_meta['0']['labels'],
             'query_f': query_feature.cpu().numpy(),
-            'query_label': self.data.query_meta[self.cid]['labels'],
+            'query_label': self.data.query_meta['0']['labels'],
         }
 
         # Save .mat file for compatibility with evaluate.py

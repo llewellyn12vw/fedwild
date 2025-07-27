@@ -1,0 +1,26 @@
+============================================================
+METADATA INFORMATION
+============================================================
+
+Metadata Source: /home/wellvw12/fedwild/federated_clients_enhanced/metadata.csv
+Metadata CSV Path: /home/wellvw12/fedwild/federated_clients_enhanced/metadata.csv
+
+METADATA STATISTICS:
+------------------------------
+Total Samples: 4482
+Total Unique IDs: 381
+
+Split Distribution:
+  train: 4362 samples (376 unique IDs)
+  gallery: 90 samples (30 unique IDs)
+  query: 30 samples (30 unique IDs)
+
+Client Distribution:
+  Shared (query/gallery): 120 samples
+  Client 0: 1022 training samples (83 unique IDs)
+  Client 1: 303 training samples (16 unique IDs)
+  Client 2: 37 training samples (6 unique IDs)
+  Client 3: 2888 training samples (258 unique IDs)
+  Client 4: 112 training samples (13 unique IDs)
+
+============================================================

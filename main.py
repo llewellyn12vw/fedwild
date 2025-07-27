@@ -23,6 +23,7 @@ from client import Client
 from server import Server
 from utils import set_random_seed
 from data_utils import Data
+from experiment_config import save_experiment_config, save_client_info, save_metadata_info
 
 mp.set_start_method('spawn', force=True)
 sys.setrecursionlimit(10000)
@@ -35,19 +36,19 @@ parser.add_argument('--ex_name',default='3LeopardSame', type=str, help='output r
 parser.add_argument('--project_dir',default='.', type=str, help='project path')
 parser.add_argument('--data_dir',default='/home/wellvw12/baselines/baseline3.3.2',type=str, help='training dir path')
 # parser.add_argument('--datasets',default='Market,DukeMTMC-reID,cuhk03-np-detected,cuhk01,MSMT17,viper,prid,3dpes,ilids',type=str, help='datasets used')
-parser.add_argument('--datasets',default='0,1',type=str, help='datasets used')
+parser.add_argument('--datasets',default='0,1,3',type=str, help='datasets used')
 parser.add_argument('--train_all', action='store_true', help='use all training data' )
 parser.add_argument('--stride', default=2, type=int, help='stride')
 parser.add_argument('--dataset_type', default='leopard', type=str, choices=['leopard', 'macaque', 'hyena', 'cow'], help='dataset type to use')
-parser.add_argument('--metadata_file', default=None, type=str, help='path to unified metadata.csv file with client allocation')
+parser.add_argument('--metadata_file', default="/home/wellvw12/fedwild/federated_clients_enhanced/metadata.csv", type=str, help='path to unified metadata.csv file with client allocation')
 
-parser.add_argument('--lr', default=0.005, type=float, help='learning rate')
+parser.add_argument('--lr', default=0.001, type=float, help='learning rate')
 parser.add_argument('--drop_rate', default=0.03, type=float, help='drop rate')
 parser.add_argument('--model', default='resnet18_ft_net', type=str, help='model name')
 
 # arguments for federated setting
 parser.add_argument('--local_epoch', default=1, type=int, help='number of local epochs')
-parser.add_argument('--batch_size', default=30, type=int, help='batch size')
+parser.add_argument('--batch_size', default=32, type=int, help='batch size')
 parser.add_argument('--num_of_clients', default=2, type=int, help='number of clients')
 
 # arguments for data transformation
@@ -71,6 +72,7 @@ parser.add_argument('--fedgkd_buffer_length', default=3, type=int, help='number 
 parser.add_argument('--fedgkd_distillation_coeff', default=0.1, type=float, help='coefficient for FedGKD distillation loss')
 parser.add_argument('--fedgkd_temperature', default=2.0, type=float, help='temperature for FedGKD distillation')
 parser.add_argument('--fedgkd_avg_param', action='store_true', help='use FedGKD with parameter averaging (default), if false uses FedGKD-VOTE')
+parser.add_argument('--fedgkd_start_round', default=5, type=int, help='round to start applying FedGKD distillation loss (buffer still fills from round 0)')
 
 # arguments for cosine annealing learning rate scheduling
 parser.add_argument('--cosine_annealing', default=False, help='use cosine annealing learning rate scheduling, default false' )
@@ -133,16 +135,24 @@ def train_fd():
             buffer_length=args.fedgkd_buffer_length,
             distillation_coeff=args.fedgkd_distillation_coeff,
             temperature=args.fedgkd_temperature,
-            avg_param=args.fedgkd_avg_param
+            avg_param=args.fedgkd_avg_param,
+            start_round=args.fedgkd_start_round
         )
 
     dir_name = os.path.join(args.project_dir, 'model', args.ex_name)
     os.makedirs(dir_name, exist_ok=True)  # Creates parent dirs if needed
 
+    # Save experiment configuration and metadata
+    print("Saving experiment configuration...")
+    save_experiment_config(args, dir_name)
+    save_client_info(data, dir_name)
+    save_metadata_info(args.metadata_file, dir_name)
+    print("Experiment configuration saved successfully!")
+
     print("=====training start!========")
     print(f"FedGKD enabled: {args.fedgkd}")
     if args.fedgkd:
-        print(f"FedGKD settings - Buffer: {args.fedgkd_buffer_length}, Coeff: {args.fedgkd_distillation_coeff}, Temp: {args.fedgkd_temperature}, Avg: {args.fedgkd_avg_param}")
+        print(f"FedGKD settings - Buffer: {args.fedgkd_buffer_length}, Coeff: {args.fedgkd_distillation_coeff}, Temp: {args.fedgkd_temperature}, Avg: {args.fedgkd_avg_param}, Start Round: {args.fedgkd_start_round}")
     print(f"Knowledge Distillation enabled: {args.kd}")
     
     if args.fedgkd and args.kd:

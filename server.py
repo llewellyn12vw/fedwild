@@ -87,6 +87,7 @@ class Server():
         self.fedgkd_distillation_coeff = 0.1
         self.fedgkd_temperature = 1.0
         self.fedgkd_avg_param = True  # True for FedGKD, False for FedGKD-VOTE
+        self.fedgkd_start_round = 0  # Round to start applying distillation loss
         self.fedgkd_models_buffer = []  # Store historical global models
         self.fedgkd_ensemble_teacher = None  # Ensemble teacher model
         self.fedgkd_model_weights = []  # Weights for FedGKD-VOTE
@@ -105,15 +106,18 @@ class Server():
         self.federated_model.eval()
         self.train_loss = []
     
-    def configure_fedgkd(self, buffer_length=3, distillation_coeff=0.5, temperature=2.0, avg_param=False):
+    def configure_fedgkd(self, buffer_length=3, distillation_coeff=0.5, temperature=2.0, avg_param=False, start_round=0):
         """Configure FedGKD parameters with research-backed defaults"""
         self.fedgkd_enabled = True
         self.fedgkd_buffer_length = buffer_length  # Shorter buffer for more recent knowledge
         self.fedgkd_distillation_coeff = distillation_coeff  # Higher coefficient for meaningful impact
         self.fedgkd_temperature = temperature
         self.fedgkd_avg_param = avg_param  # Default to FedGKD-VOTE for performance weighting
-        print(f"FedGKD configured with CSKD: buffer_length={buffer_length}, distillation_coeff={distillation_coeff}, temperature={temperature}, avg_param={avg_param}")
+        self.fedgkd_start_round = start_round  # Round to start applying distillation
+        print(f"FedGKD configured with CSKD: buffer_length={buffer_length}, distillation_coeff={distillation_coeff}, temperature={temperature}, avg_param={avg_param}, start_round={start_round}")
         print(f"Using {'FedGKD (simple averaging)' if avg_param else 'FedGKD-VOTE (performance weighting)'}")
+        if start_round > 0:
+            print(f"FedGKD distillation will start from round {start_round} (buffer fills from round 0)")
     
     def ensemble_historical_models(self):
         """Create ensemble teacher by averaging historical models"""
@@ -212,10 +216,20 @@ class Server():
         else:
             print("WARNING: FedGKD ensemble teacher is None!")
     
-    def send_fedgkd_teacher_to_clients(self, selected_clients):
-        """Send ensemble teacher to selected clients"""
+    def send_fedgkd_teacher_to_clients(self, selected_clients, current_round):
+        """Send ensemble teacher to selected clients if distillation should start"""
         if not self.fedgkd_enabled or self.fedgkd_ensemble_teacher is None:
             return
+        
+        # Only send teacher if we're at or past the start round
+        if current_round < self.fedgkd_start_round:
+            if current_round == 0 and self.fedgkd_start_round > 0:
+                print(f"FedGKD: Buffer filling phase - distillation will start at round {self.fedgkd_start_round}")
+            return
+        
+        # Log when distillation starts
+        if current_round == self.fedgkd_start_round:
+            print(f"FedGKD: Starting distillation at round {current_round}")
             
         for client_id in selected_clients:
             if client_id in self.clients:
@@ -267,7 +281,7 @@ class Server():
         current_client_list = random.sample(self.client_list, self.num_of_clients)
         
         if self.fedgkd_enabled and self.fedgkd_ensemble_teacher is not None:
-            self.send_fedgkd_teacher_to_clients(current_client_list)
+            self.send_fedgkd_teacher_to_clients(current_client_list, round)
         
         print(f"\n=== SERVER TRAINING ROUND {round} ===")
         
@@ -343,13 +357,20 @@ class Server():
         plt.close('all')
         
     def test(self, use_cuda,):
+        """
+        Test the global federated model on the shared query/gallery split.
+        This ensures consistent evaluation across server and all clients.
+        """
         print("="*10)
-        print("Start Tesing!")
+        print("Start Testing Global Model!")
         print("="*10)
         print('We use the scale: %s'%self.multiple_scale)
         
+        # Use shared query/gallery split (dataset '0') for global model evaluation
         for dataset in self.data.datasets:
-            if dataset != '0': continue
+            if dataset != '0': continue  # Only evaluate on shared query/gallery split
+            
+            print(f"Evaluating global model on shared query/gallery split (dataset {dataset})")
             self.federated_model = self.federated_model.eval()
             if use_cuda:
                 self.federated_model = self.federated_model.cuda()
@@ -361,11 +382,9 @@ class Server():
             result = {
                 'gallery_f': gallery_feature.numpy(),
                 'gallery_label': self.data.gallery_meta[dataset]['labels'],
-                # 'gallery_cam': self.data.gallery_meta[dataset]['cameras'],
                 'query_f': query_feature.numpy(),
                 'query_label': self.data.query_meta[dataset]['labels'],
-                # 'query_cam': self.data.query_meta[dataset]['cameras']
-                }
+            }
 
             scipy.io.savemat(os.path.join(self.project_dir,
                         'model',
@@ -373,10 +392,11 @@ class Server():
                         'pytorch_result.mat'),
                         result)
             
-            print(self.model_name)
-            print(dataset)
+            print(f"Global model evaluation: {self.model_name}")
+            print(f"Shared test split: {dataset}")
 
-            os.system('python evaluate.py --result_dir {} --dataset {} --output_file {}'.format(os.path.join(self.project_dir, 'model', self.experiment_name), dataset, 'aggregated_result.csv'))
+            # Save results with clearer naming to indicate global model evaluation
+            os.system('python evaluate.py --result_dir {} --dataset {} --output_file {}'.format(os.path.join(self.project_dir, 'model', self.experiment_name), dataset, 'global_model_result.csv'))
 
 
     def knowledge_distillation(self, regularization, round = 0):
