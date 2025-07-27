@@ -4,7 +4,7 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 import os
-from model import ft_net
+from model import ft_net, resnet50_arcface, dinov2_arcface
 from torch.autograd import Variable
 
 from torchvision import datasets, transforms
@@ -47,12 +47,16 @@ def save_network(network, cid, epoch_label, project_dir, name, gpu_ids):
     if torch.cuda.is_available():
         network.cuda(gpu_ids[0])
 
-def get_model(class_sizes, drop_rate, stride, model_type='resnet18_ft_net'):
+def get_model(class_sizes, drop_rate, stride, model_type='resnet18_ft_net', margin=0.5, scale=64, model_size='small'):
     if model_type == 'resnet18_ft_net':
         model = ft_net(class_sizes, drop_rate, stride)
-    elif model_type == 'megadescriptor':
-        from model import megadescriptor
-        model = megadescriptor(class_sizes, drop_rate, stride)
+    elif model_type == 'resnet50_arcface':
+        model = resnet50_arcface(class_sizes, drop_rate, stride, margin=margin, scale=scale)
+    elif model_type == 'dinov2_arcface':
+        model = dinov2_arcface(class_sizes, drop_rate, margin=margin, scale=scale, model_size=model_size)
+    elif model_type == 'megadescriptor_ft_net':
+        from model import megadescriptor_ft_net
+        model = megadescriptor_ft_net(class_sizes, drop_rate)
     else:
         raise ValueError(f"Unknown model type: {model_type}")
     return model

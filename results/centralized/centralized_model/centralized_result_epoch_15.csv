@@ -1,0 +1,2 @@
+timestamp,dataset,rank1,mAP,loss
+2025-07-27 12:21:10,centralized_epoch_15,0.3000,0.3227,0.0000

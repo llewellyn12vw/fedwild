@@ -6,7 +6,7 @@ import json
 import torch
 from random_erasing import RandomErasing
 from wildlife_tools.data.dataset import WildlifeDataset
-from wildlife_datasets.datasets import Cows2021v2, LeopardID2022, HyenaID2022
+from wildlife_datasets.datasets import Cows2021v2, LeopardID2022, HyenaID2022, MacaqueFaces
 import pandas as pd
 import torchvision.transforms as T
 
@@ -79,7 +79,8 @@ class Data():
             metadata = self.metadata
         else:
             # Use single species metadata
-             metadata = LeopardID2022('/home/wellvw12/leopard').root
+            #  metadata = LeopardID2022('/home/wellvw12/leopard').root
+            metadata = MacaqueFaces('/home/wellvw12/fedwild/MacaqueFaces').root
 
         # metadata = HyenaID2022('/home/wellvw12/hyenaid2022')
         df = pd.read_csv(data_path)
@@ -129,7 +130,9 @@ class Data():
                 metadata = self.metadata
             else:
                 # Use single species metadata
-                metadata = LeopardID2022('/home/wellvw12/leopard').root
+                # metadata = LeopardID2022('/home/wellvw12/leopard').root
+                metadata = MacaqueFaces('/home/wellvw12/fedwild/MacaqueFaces').root
+               
             # metadata = HyenaID2022('/home/wellvw12/hyenaid2022')
 
             # df = pd.read_csv(f'{self.data_dir}/{test_dir}/test.csv')          

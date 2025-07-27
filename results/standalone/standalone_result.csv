@@ -1,0 +1,8 @@
+timestamp,dataset,rank1,mAP,loss
+2025-07-26 14:21:09,standalone_client,0.0286,0.1581,0.0000
+2025-07-26 14:29:13,standalone_client,0.0286,0.1581,0.0000
+2025-07-26 14:32:33,standalone_client,0.0286,0.1551,0.0000
+2025-07-26 16:33:13,standalone_client,0.0077,0.0368,0.0000
+2025-07-26 16:35:18,standalone_client,0.0054,0.0358,0.0000
+2025-07-26 16:37:25,standalone_client,0.0062,0.0353,0.0000
+2025-07-26 16:37:42,standalone_client,0.0062,0.0353,0.0000
