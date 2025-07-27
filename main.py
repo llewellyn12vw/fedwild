@@ -38,8 +38,8 @@ parser.add_argument('--data_dir',default='/home/wellvw12/baselines/baseline3.3.2
 parser.add_argument('--datasets',default='0,1',type=str, help='datasets used')
 parser.add_argument('--train_all', action='store_true', help='use all training data' )
 parser.add_argument('--stride', default=2, type=int, help='stride')
-parser.add_argument('--multi_species', action='store_true', help='use multiple species')
-parser.add_argument('--metadata', default=None, type=str, help='metadata type: leopard, hyena, sea_turtle, cow')
+parser.add_argument('--dataset_type', default='leopard', type=str, choices=['leopard', 'macaque', 'hyena', 'cow'], help='dataset type to use')
+parser.add_argument('--metadata_file', default=None, type=str, help='path to unified metadata.csv file with client allocation')
 
 parser.add_argument('--lr', default=0.005, type=float, help='learning rate')
 parser.add_argument('--drop_rate', default=0.03, type=float, help='drop rate')
@@ -88,7 +88,7 @@ def train_fd():
 
     set_random_seed(1)
 
-    data = Data(args.datasets, args.data_dir, args.batch_size, args.erasing_p, args.color_jitter, args.train_all,args.multi_species, args.metadata)
+    data = Data(args.datasets, args.data_dir, args.batch_size, args.erasing_p, args.color_jitter, args.train_all, args.dataset_type, args.metadata_file)
     data.preprocess()
     
     clients = {}
@@ -305,7 +305,7 @@ def standalone_training():
     
     set_random_seed(1)
     
-    data = Data(args.datasets, args.data_dir, args.batch_size, args.erasing_p, args.color_jitter, args.train_all)
+    data = Data(args.datasets, args.data_dir, args.batch_size, args.erasing_p, args.color_jitter, args.train_all, args.dataset_type, args.metadata_file)
     data.preprocess()
     
     # Train each client independently
@@ -357,7 +357,7 @@ def centralized_training():
     
     set_random_seed(1)
     
-    data = Data(args.datasets, args.data_dir, args.batch_size, args.erasing_p, args.color_jitter, args.train_all)
+    data = Data(args.datasets, args.data_dir, args.batch_size, args.erasing_p, args.color_jitter, args.train_all, args.dataset_type, args.metadata_file)
     data.preprocess()
     
     # Create centralized model directory
