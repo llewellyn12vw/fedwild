@@ -34,13 +34,13 @@ parser.add_argument('--gpu_ids',default='0', type=str,help='gpu_ids: e.g. 0  0,1
 parser.add_argument('--model_name',default='federated_model', type=str, help='output model name')
 parser.add_argument('--ex_name',default='3LeopardSame', type=str, help='output result name')
 parser.add_argument('--project_dir',default='.', type=str, help='project path')
-parser.add_argument('--data_dir',default='/home/wellvw12/baselines/baseline3.3.2',type=str, help='training dir path')
+parser.add_argument('--data_dir',default='/home/wellvw12/fedwild/MacaqueFaces',type=str, help='training dir path')
 # parser.add_argument('--datasets',default='Market,DukeMTMC-reID,cuhk03-np-detected,cuhk01,MSMT17,viper,prid,3dpes,ilids',type=str, help='datasets used')
-parser.add_argument('--datasets',default='0,1,2',type=str, help='datasets used')
+parser.add_argument('--datasets',default='beskydy,nps,sumava',type=str, help='datasets used')
 parser.add_argument('--train_all', action='store_true', help='use all training data' )
 parser.add_argument('--stride', default=2, type=int, help='stride')
-parser.add_argument('--dataset_type', default='leopard', type=str, choices=['leopard', 'macaque', 'hyena', 'cow'], help='dataset type to use')
-parser.add_argument('--metadata_file', default="/home/wellvw12/fedwild/federated_clients_enhanced/metadata.csv", type=str, help='path to unified metadata.csv file with client allocation')
+parser.add_argument('--dataset_type', default='czechlynx', type=str, choices=['leopard', 'macaque', 'hyena', 'cow','czechlynx'], help='dataset type to use')
+parser.add_argument('--metadata_file', default="/home/wellvw12/fedwild/czechlynx_federated", type=str, help='path to unified metadata.csv file with client allocation')
 parser.add_argument('--image_size', default=128, type=int, help='input image size for training and testing')
 
 parser.add_argument('--lr', default=0.001, type=float, help='learning rate')
@@ -169,7 +169,7 @@ def train_fd():
         server.train(i, args.cdw, use_cuda,i)
         save_path = os.path.join(dir_name, 'federated_model.pth')
         torch.save(server.federated_model.cpu().state_dict(), save_path)
-        if (i+1)%10 == 0:
+        if (i+1)%1 == 0:
             if args.kd:
                 server.knowledge_distillation(args.regularization, round=i+1)
             server.test(use_cuda)

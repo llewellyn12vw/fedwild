@@ -8,17 +8,17 @@ from collections import defaultdict
 
 def parse_args():
     parser = argparse.ArgumentParser(description='Federated Data Splitter with Client Allocation')
-    parser.add_argument('--dataset_path', default='/home/wellvw12/fedwild/MacaqueFaces', type=str, help='Path to dataset')
-    parser.add_argument('--output_dir', default='/home/wellvw12/fedwild/federated_clients_enhanced', type=str, help='Output directory')
-    parser.add_argument('--dataset_type', default='macaque', choices=['leopard', 'macaque'], help='Dataset type')
+    parser.add_argument('--dataset_path', default='/home/wellvw12/leopard', type=str, help='Path to dataset')
+    parser.add_argument('--output_dir', default='/home/wellvw12/fedwild/federated_leopards', type=str, help='Output directory')
+    parser.add_argument('--dataset_type', default='leopard', choices=['leopard', 'macaque'], help='Dataset type')
     
     # Query/Gallery parameters
-    parser.add_argument('--query_size', default=10, type=int, help='Number of query samples (IDs)')
+    parser.add_argument('--query_size', default=20, type=int, help='Number of query samples (IDs)')
     parser.add_argument('--samples_per_query_id', default=2, type=int, help='Number of samples per query ID')
     parser.add_argument('--samples_per_gallery_id', default=4, type=int, help='Number of samples per gallery ID')
     
     # Client federation parameters
-    parser.add_argument('--num_clients', default=3, type=int, help='Number of federated clients')
+    parser.add_argument('--num_clients', default=5, type=int, help='Number of federated clients')
     parser.add_argument('--alpha', default=0.4, type=float, help='Dirichlet alpha parameter (lower = more heterogeneous)')
     
     # General parameters

@@ -1,26 +1,71 @@
 from torch.utils.data import Dataset
-from PIL import Image
+from PIL import Image, ImageEnhance, ImageFilter
 from torchvision import datasets, transforms
 import os
 import json
 import torch
+import numpy as np
 from random_erasing import RandomErasing
 from wildlife_tools.data.dataset import WildlifeDataset
 from wildlife_datasets.datasets import Cows2021v2, LeopardID2022, HyenaID2022, MacaqueFaces
+from czechlynx_dataset import CzechLynxDataset
 import pandas as pd
 import torchvision.transforms as T
 
-class ImageDataset(Dataset):
-    def __init__(self, imgs,  transform = None):
-        self.imgs = imgs
-        self.transform = transform
 
-    def __len__(self):
-        return len(self.imgs)
+# Custom transform classes for client-specific effects
+class DarkenTransform:
+    def __init__(self, factor=0.3):
+        self.factor = factor
+    
+    def __call__(self, img):
+        enhancer = ImageEnhance.Brightness(img)
+        return enhancer.enhance(self.factor)
 
-    def __getitem__(self, index):
-        data,label = self.imgs[index]
-        return self.transform(Image.open(data)), label
+
+class AddNoise:
+    def __init__(self, noise_level=0.05):
+        self.noise_level = noise_level
+    
+    def __call__(self, img):
+        img_array = np.array(img)
+        noise = np.random.normal(0, self.noise_level * 255, img_array.shape)
+        noisy_img = np.clip(img_array + noise, 0, 255).astype(np.uint8)
+        return Image.fromarray(noisy_img)
+
+
+class BrightenTransform:
+    def __init__(self, factor=1.7):
+        self.factor = factor
+    
+    def __call__(self, img):
+        enhancer = ImageEnhance.Brightness(img)
+        return enhancer.enhance(self.factor)
+
+
+class WeatherEffect:
+    def __init__(self):
+        pass
+    
+    def __call__(self, img):
+        # Simulate weather by reducing contrast and adding slight blur
+        enhancer = ImageEnhance.Contrast(img)
+        img = enhancer.enhance(0.7)
+        return img.filter(ImageFilter.GaussianBlur(radius=0.5))
+
+
+class CompressionArtifacts:
+    def __init__(self, quality=30):
+        self.quality = quality
+    
+    def __call__(self, img):
+        # Simulate compression by saving/loading with low quality
+        import io
+        buffer = io.BytesIO()
+        img.save(buffer, format='JPEG', quality=self.quality)
+        buffer.seek(0)
+        return Image.open(buffer)
+
 
 
 class Data():
@@ -34,61 +79,151 @@ class Data():
         self.dataset_type = dataset_type
         self.metadata_file = metadata_file
         self.image_size = image_size  # Dynamic image size
+
+            
+        self.unified_metadata = pd.read_csv(self.metadata_file)
+        print(f"Loaded {len(self.unified_metadata)} samples from unified metadata")
         
-        # Load unified metadata if provided
-        if self.metadata_file and os.path.exists(self.metadata_file):
-            print(f"Loading unified metadata from: {self.metadata_file}")
-            self.unified_metadata = pd.read_csv(self.metadata_file)
-            print(f"Loaded {len(self.unified_metadata)} samples from unified metadata")
-            self.use_unified_metadata = True
-        else:
-            self.unified_metadata = None
-            self.use_unified_metadata = False
-            print("Using legacy CSV file approach")
+        # Get available clients from metadata
+        available_clients = self.unified_metadata['client'].unique()
+        print(f"Available clients: {available_clients}")
+        
+        # Update datasets list to match available clients
+        self.datasets = [str(client) for client in available_clients]
+        print(f"Client datasets: {self.datasets}")
+
 
     def transform(self):
-        transform_train = [
-                transforms.Resize((self.image_size, self.image_size), interpolation=3),
-                transforms.Pad(10),
-                transforms.RandomCrop((self.image_size, self.image_size)),
-                transforms.RandomHorizontalFlip(),
-                transforms.ToTensor(),
-                transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
-                ]
-
-        transform_val = [
-                transforms.Resize(size=(self.image_size, self.image_size), interpolation=3),
-                transforms.ToTensor(),
-                transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
-                ]
-
-        if self.erasing_p > 0:
-            transform_train = transform_train + [RandomErasing(probability=self.erasing_p, mean=[0.0, 0.0, 0.0])]
-
-        if self.color_jitter:
-            transform_train = [transforms.ColorJitter(brightness=0.1, contrast=0.1, saturation=0.1, hue=0)] + transform_train
-
-        self.data_transforms = {
-            'train': transforms.Compose(transform_train),
-            'val': transforms.Compose(transform_val),
+        # Client-specific transform definitions
+        self.transforms_dict = {
+            '0': {  # "Original/Control" client
+                'name': 'Original',
+                'train_transform': transforms.Compose([
+                    transforms.Resize((self.image_size, self.image_size), interpolation=3),
+                    transforms.Pad(10),
+                    transforms.RandomCrop((self.image_size, self.image_size)),
+                    transforms.RandomHorizontalFlip(),
+                    transforms.ToTensor(),
+                    transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
+                ]),
+                'test_transform': transforms.Compose([
+                    transforms.Resize(size=(self.image_size, self.image_size), interpolation=3),
+                    transforms.ToTensor(),
+                    transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
+                ])
+            },
+            
+            '1': {  # "Low Light/Night Vision" client
+                'name': 'Low_Light', 
+                'train_transform': transforms.Compose([
+                    transforms.Resize((self.image_size, self.image_size), interpolation=3),
+                    transforms.Pad(10),
+                    transforms.RandomCrop((self.image_size, self.image_size)),
+                    transforms.RandomHorizontalFlip(),
+                    DarkenTransform(factor=0.3),
+                    AddNoise(noise_level=0.05),
+                    transforms.ToTensor(),
+                    transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
+                ]),
+                'test_transform': transforms.Compose([
+                    transforms.Resize(size=(self.image_size, self.image_size), interpolation=3),
+                    DarkenTransform(factor=0.3),
+                    AddNoise(noise_level=0.05),
+                    transforms.ToTensor(),
+                    transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
+                ])
+            },
+            
+            '2': {  # "Overexposed/Bright" client
+                'name': 'Bright',
+                'train_transform': transforms.Compose([
+                    transforms.Resize((self.image_size, self.image_size), interpolation=3),
+                    transforms.Pad(10),
+                    transforms.RandomCrop((self.image_size, self.image_size)),
+                    transforms.RandomHorizontalFlip(),
+                    BrightenTransform(factor=1.7),
+                    transforms.ColorJitter(contrast=0.3),
+                    transforms.ToTensor(),
+                    transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
+                ]),
+                'test_transform': transforms.Compose([
+                    transforms.Resize(size=(self.image_size, self.image_size), interpolation=3),
+                    BrightenTransform(factor=1.7),
+                    transforms.ColorJitter(contrast=0.3),
+                    transforms.ToTensor(),
+                    transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
+                ])
+            },
+            
+            '3': {  # "Weather/Environmental" client  
+                'name': 'Weather',
+                'train_transform': transforms.Compose([
+                    transforms.Resize((self.image_size, self.image_size), interpolation=3),
+                    transforms.Pad(10),
+                    transforms.RandomCrop((self.image_size, self.image_size)),
+                    transforms.RandomHorizontalFlip(),
+                    WeatherEffect(),
+                    transforms.GaussianBlur(kernel_size=3, sigma=0.5),
+                    transforms.ToTensor(),
+                    transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
+                ]),
+                'test_transform': transforms.Compose([
+                    transforms.Resize(size=(self.image_size, self.image_size), interpolation=3),
+                    WeatherEffect(),
+                    transforms.GaussianBlur(kernel_size=3, sigma=0.5),
+                    transforms.ToTensor(),
+                    transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
+                ])
+            },
+            
+            '4': {  # "Camera Quality/Compression" client
+                'name': 'Low_Quality',
+                'train_transform': transforms.Compose([
+                    transforms.Resize((self.image_size, self.image_size), interpolation=3),
+                    transforms.Pad(10),
+                    transforms.RandomCrop((self.image_size, self.image_size)),
+                    transforms.RandomHorizontalFlip(),
+                    CompressionArtifacts(),
+                    transforms.ToTensor(),
+                    transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
+                ]),
+                'test_transform': transforms.Compose([
+                    transforms.Resize(size=(self.image_size, self.image_size), interpolation=3),
+                    CompressionArtifacts(),
+                    transforms.ToTensor(),
+                    transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
+                ])
+            }
         }
 
-    def _get_metadata_root(self):
-        """Get the appropriate metadata root based on dataset type"""
-        if self.dataset_type == 'leopard':
-            return LeopardID2022('/home/wellvw12/leopard').root
+        # Add additional effects if specified
+        if self.erasing_p > 0:
+            for client_id in self.transforms_dict:
+                train_transforms = list(self.transforms_dict[client_id]['train_transform'].transforms)
+                train_transforms.append(RandomErasing(probability=self.erasing_p, mean=[0.0, 0.0, 0.0]))
+                self.transforms_dict[client_id]['train_transform'] = transforms.Compose(train_transforms)
+        
+        # Legacy transforms for backward compatibility
+        self.data_transforms = {
+            'train': self.transforms_dict.get('0', self.transforms_dict['0'])['train_transform'],
+            'val': self.transforms_dict.get('0', self.transforms_dict['0'])['test_transform'],
+        }
+
+    def _create_dataset(self, client_data, transform):
+        """Factory function to create species-specific dataset instances"""
+        if self.dataset_type == 'czechlynx':
+            root = CzechLynxDataset('/home/wellvw12/.cache/kagglehub/datasets/picekl/czechlynx/versions/6').root
+            return WildlifeDataset(client_data,root, transform=transform)
+        elif self.dataset_type == 'leopard':
+            root = LeopardID2022('/home/wellvw12/leopard').root
+            return WildlifeDataset(client_data,root, transform=transform)
         elif self.dataset_type == 'macaque':
-            return MacaqueFaces('/home/wellvw12/fedwild/MacaqueFaces').root
-        elif self.dataset_type == 'hyena':
-            return HyenaID2022('/home/wellvw12/hyenaid2022').root
-        elif self.dataset_type == 'cow':
-            return Cows2021v2('/home/wellvw12/cows2021v2').root
-        else:
-            # Default to macaque if not specified
-            return MacaqueFaces('/home/wellvw12/fedwild/MacaqueFaces').root
+            root = MacaqueFaces('/home/wellvw12/fedwild/MacaqueFaces').root
+            return WildlifeDataset(client_data,root, transform=transform)
+
 
     def preprocess_kd_data(self, dataset):
-        loader, image_dataset = self.preprocess_one_train_dataset(dataset)
+        loader, _ = self.preprocess_one_train_dataset(dataset)
         self.kd_loader = loader
         print(self.kd_loader)
 
@@ -96,36 +231,23 @@ class Data():
     def preprocess_one_train_dataset(self, dataset):
         """preprocess a training dataset, construct a data loader.
         """
-        transform = self.data_transforms['train']
-        
-        if self.use_unified_metadata:
-            # Use unified metadata approach
-            client_id = int(dataset)  # dataset should be client ID (0, 1, 2, ...)
-            
-            # Filter metadata for this client's training data
-            client_train_data = self.unified_metadata[
-                (self.unified_metadata['split'] == 'train') & 
-                (self.unified_metadata['client'] == client_id)
-            ].copy()
-            
-            print(f"Client {client_id}: {len(client_train_data)} training samples, "
-                  f"{client_train_data['identity'].nunique()} unique IDs")
-            
-            if len(client_train_data) == 0:
-                print(f"Warning: No training data found for client {client_id}")
-                # Create empty dataset
-                image_dataset = WildlifeDataset(pd.DataFrame(), None, transform=transform)
-            else:
-                # Determine metadata root based on dataset type
-                metadata_root = self._get_metadata_root()
-                image_dataset = WildlifeDataset(client_train_data, metadata_root, transform=transform)
+        # Use client-specific transform if available, otherwise use default
+        if dataset in self.transforms_dict:
+            transform = self.transforms_dict[dataset]['train_transform']
+            print(f"Using {self.transforms_dict[dataset]['name']} transforms for client {dataset}")
         else:
-            # Legacy approach: read from separate CSV files
-            data_path = os.path.join(self.data_dir, dataset, 'train.csv')
-            metadata_root = self._get_metadata_root()
+            transform = self.data_transforms['train']
+            print(f"Using default transforms for client {dataset}")
+        
+        client_train_data = self.unified_metadata[
+            (self.unified_metadata['split'] == 'train') & 
+            (self.unified_metadata['client'] ==int(dataset))
+        ].copy()
+        
+        print(f"Client {dataset}: {len(client_train_data)} training samples, "
+              f"{client_train_data['identity'].nunique()} unique IDs")
 
-            df = pd.read_csv(data_path)
-            image_dataset = WildlifeDataset(df, metadata_root, transform=transform)
+        image_dataset = self._create_dataset(client_train_data, transform)
 
         loader = torch.utils.data.DataLoader(
             image_dataset, 
@@ -145,9 +267,8 @@ class Data():
         self.client_list = []
         
         for dataset in self.datasets:
-            
-            if dataset == 'test': continue
-
+            if dataset == '-1': continue
+            print(dataset)
             self.client_list.append(dataset)
             loader, image_dataset = self.preprocess_one_train_dataset(dataset)
 
@@ -158,99 +279,71 @@ class Data():
 
 
     def preprocess_test(self):
-        """Test data preprocessing for query and gallery splits"""
+        """Test data preprocessing - create client test sets from '-1' data with client transforms"""
         self.test_loaders = {}
         self.gallery_meta = {}
         self.query_meta = {}
-
-        transform = self.data_transforms['val']
-
-        if self.use_unified_metadata:
-            # Use unified metadata approach - query/gallery are shared across all clients
-            query_data = self.unified_metadata[self.unified_metadata['split'] == 'query'].copy()
-            gallery_data = self.unified_metadata[self.unified_metadata['split'] == 'gallery'].copy()
+        
+        # Get global test data (client '-1') for base data
+        global_query_data = self.unified_metadata[
+            (self.unified_metadata['split'] == 'query') & 
+            (self.unified_metadata['client'] == -1)
+        ].copy()
+        
+        global_gallery_data = self.unified_metadata[
+            (self.unified_metadata['split'] == 'gallery') & 
+            (self.unified_metadata['client'] == -1)
+        ].copy()
+        
+        print(f"Global test data - Query: {len(global_query_data)} samples, Gallery: {len(global_gallery_data)} samples")
+        
+        # Create test loaders for each client using global data with client-specific transforms
+        for client_name in self.datasets:
+            if client_name == '-1':
+                continue  # Skip the source data itself
             
-            print(f"Query samples: {len(query_data)} ({query_data['identity'].nunique()} unique IDs)")
-            print(f"Gallery samples: {len(gallery_data)} ({gallery_data['identity'].nunique()} unique IDs)")
-            
-            # Determine metadata root based on dataset type
-            metadata_root = self._get_metadata_root()
-            
-            # Create datasets
-            if len(query_data) > 0:
-                query_dataset = WildlifeDataset(query_data, metadata_root, transform=transform)
+            # Use client-specific transform if available, otherwise use default
+            if client_name in self.transforms_dict:
+                transform = self.transforms_dict[client_name]['test_transform']
+                transform_name = self.transforms_dict[client_name]['name']
+                print(f"Creating test set for client {client_name} using {transform_name} transforms")
             else:
-                query_dataset = WildlifeDataset(pd.DataFrame(), None, transform=transform)
-                
-            if len(gallery_data) > 0:
-                gallery_dataset = WildlifeDataset(gallery_data, metadata_root, transform=transform)
-            else:
-                gallery_dataset = WildlifeDataset(pd.DataFrame(), None, transform=transform)
+                transform = self.data_transforms['val']
+                transform_name = 'default'
+                print(f"Creating test set for client {client_name} using {transform_name} transforms")
             
-            # Create test loaders for each client (all use same query/gallery)
-            for test_dir in self.datasets:
-                self.test_loaders[test_dir] = {
-                    'gallery': torch.utils.data.DataLoader(
-                        gallery_dataset,
-                        batch_size=self.batch_size,
-                        shuffle=False,
-                        num_workers=2,
-                        pin_memory=True
-                    ),
-                    'query': torch.utils.data.DataLoader(
-                        query_dataset,
-                        batch_size=self.batch_size,
-                        shuffle=False, 
-                        num_workers=2,
-                        pin_memory=True
-                    )
-                }
+            print(f"Client {client_name} - Query: {len(global_query_data)} samples, Gallery: {len(global_gallery_data)} samples")
+            
+            # Use the same global data but with client-specific transforms
+            query_dataset = self._create_dataset(global_query_data, transform)
+            gallery_dataset = self._create_dataset(global_gallery_data, transform)
+            
+            self.test_loaders[client_name] = {
+                'gallery': torch.utils.data.DataLoader(
+                    gallery_dataset,
+                    batch_size=self.batch_size,
+                    shuffle=False,
+                    num_workers=2,
+                    pin_memory=True
+                ),
+                'query': torch.utils.data.DataLoader(
+                    query_dataset,
+                    batch_size=self.batch_size,
+                    shuffle=False, 
+                    num_workers=2,
+                    pin_memory=True
+                )
+            }
 
-                # Store metadata
-                self.gallery_meta[test_dir] = {
-                    'sizes': len(gallery_dataset),
-                    'labels': gallery_dataset.labels if len(gallery_dataset) > 0 else []
-                }
-                self.query_meta[test_dir] = {
-                    'sizes': len(query_dataset),
-                    'labels': query_dataset.labels if len(query_dataset) > 0 else []
-                }
-        else:
-            # Legacy approach: read from separate CSV files
-            for test_dir in self.datasets:
-                metadata_root = self._get_metadata_root()
-
-                query = pd.read_csv(f'{self.data_dir}/{test_dir}/query.csv')
-                gallery = pd.read_csv(f'{self.data_dir}/{test_dir}/gallery.csv')
-                gallery_dataset = WildlifeDataset(gallery, metadata_root, transform=transform)
-                query_dataset = WildlifeDataset(query, metadata_root, transform=transform)
-
-                self.test_loaders[test_dir] = {
-                    'gallery': torch.utils.data.DataLoader(
-                        gallery_dataset,
-                        batch_size=self.batch_size,
-                        shuffle=False,
-                        num_workers=2,
-                        pin_memory=True
-                    ),
-                    'query': torch.utils.data.DataLoader(
-                        query_dataset,
-                        batch_size=self.batch_size,
-                        shuffle=False, 
-                        num_workers=2,
-                        pin_memory=True
-                    )
-                }
-
-                # Store metadata
-                self.gallery_meta[test_dir] = {
-                    'sizes': len(gallery_dataset),
-                    'labels': gallery_dataset.labels
-                }
-                self.query_meta[test_dir] = {
-                    'sizes': len(query_dataset),
-                    'labels': query_dataset.labels
-                }
+            # Store metadata
+            self.gallery_meta[client_name] = {
+                'sizes': len(gallery_dataset),
+                'labels': gallery_dataset.labels_string if hasattr(gallery_dataset, 'labels_string') else []
+            }
+            self.query_meta[client_name] = {
+                'sizes': len(query_dataset),
+                'labels': query_dataset.labels_string if hasattr(query_dataset, 'labels_string') else []
+            }
 
     def preprocess(self):
         self.transform()
@@ -258,23 +351,4 @@ class Data():
         self.preprocess_test()
         # self.preprocess_kd_data('kd')
 
-def get_camera_ids(img_paths):
-    """get camera id and labels by image path
-    """
-    camera_ids = []
-    labels = []
-    for path, v in img_paths:
-        filename = os.path.basename(path)
-        if filename[:3]!='cam':
-            label = filename[0:4]
-            camera = filename.split('c')[1]
-            camera = camera.split('s')[0]
-        else:
-            label = filename.split('_')[2]
-            camera = filename.split('_')[1]
-        if label[0:2]=='-1':
-            labels.append(-1)
-        else:
-            labels.append(int(label))
-        camera_ids.append(int(camera[0]))
-    return camera_ids, labels
+

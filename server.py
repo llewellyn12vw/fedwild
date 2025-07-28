@@ -7,7 +7,6 @@ import torch.nn as nn
 import torch
 import scipy.io
 import copy
-from data_utils import ImageDataset
 import random
 import torch.optim as optim
 from torchvision import datasets
@@ -358,26 +357,27 @@ class Server():
         
     def test(self, use_cuda,):
         """
-        Test the global federated model on the shared query/gallery split.
-        This ensures consistent evaluation across server and all clients.
+        Test the global federated model on each client's individual query/gallery split and global test set.
+        This evaluates how well the global model generalizes to each client's data and the global test set.
         """
         print("="*10)
-        print("Start Testing Global Model!")
+        print("Start Testing Global Model on Each Client Dataset!")
         print("="*10)
         print('We use the scale: %s'%self.multiple_scale)
         
-        # Use shared query/gallery split (dataset '0') for global model evaluation
+        # Test global model on each client's dataset
         for dataset in self.data.datasets:
-            if dataset != '0': continue  # Only evaluate on shared query/gallery split
+            if dataset == '-1': continue  # Skip global test set, focus on client-specific datasets
             
-            print(f"Evaluating global model on shared query/gallery split (dataset {dataset})")
+            print(f"Evaluating global model on client {dataset} dataset")
             self.federated_model = self.federated_model.eval()
             if use_cuda:
                 self.federated_model = self.federated_model.cuda()
-            
+                
+            test_loaders = self.data.test_loaders[dataset]
             with torch.no_grad():
-                gallery_feature = extract_feature(self.federated_model, self.data.test_loaders[dataset]['gallery'], self.multiple_scale, self.data.image_size)
-                query_feature = extract_feature(self.federated_model, self.data.test_loaders[dataset]['query'], self.multiple_scale, self.data.image_size)
+                gallery_feature = extract_feature(self.federated_model, test_loaders['gallery'], self.multiple_scale, self.data.image_size)
+                query_feature = extract_feature(self.federated_model, test_loaders['query'], self.multiple_scale, self.data.image_size)
 
             result = {
                 'gallery_f': gallery_feature.numpy(),
@@ -386,18 +386,18 @@ class Server():
                 'query_label': self.data.query_meta[dataset]['labels'],
             }
 
-            scipy.io.savemat(os.path.join(self.project_dir,
-                        'model',
-                        self.experiment_name,
-                        'pytorch_result.mat'),
-                        result)
+            # Save results for each client in separate directories
+            client_result_dir = os.path.join(self.project_dir, 'model', self.experiment_name)
+            os.makedirs(client_result_dir, exist_ok=True)
             
-            print(f"Global model evaluation: {self.model_name}")
-            print(f"Shared test split: {dataset}")
+            scipy.io.savemat(os.path.join(client_result_dir, 'pytorch_result.mat'), result)
+            
+            print(f"Global model evaluation on client {dataset}: {self.model_name}")
 
-            # Save results with clearer naming to indicate global model evaluation
-            os.system('python evaluate.py --result_dir {} --dataset {} --output_file {}'.format(os.path.join(self.project_dir, 'model', self.experiment_name), dataset, 'global_model_result.csv'))
-
+            output_file = f'global_result.csv'
+            cmd = f'python evaluate.py --result_dir {client_result_dir} --dataset {dataset} --output_file {output_file}'
+            os.system(cmd)
+        
 
     def knowledge_distillation(self, regularization, round = 0):
         import torch.nn.functional as F

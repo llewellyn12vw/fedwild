@@ -1,3 +1,0 @@
-timestamp,dataset,rank1,mAP,loss
-2025-07-27 09:37:00,centralized_epoch_40,0.0857,0.1364,0.0000
-2025-07-27 12:31:03,centralized_epoch_40,0.3500,0.3295,0.0000

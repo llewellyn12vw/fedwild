@@ -1,0 +1,20 @@
+CZECH LYNX FEDERATED DATASET CONFIGURATION
+==================================================
+
+Generated with parameters:
+- Query size per client: 20 IDs
+- Samples per query ID: 2
+- Samples per gallery ID: 4
+- Min samples per ID: None
+- Max samples per ID: 100
+- Random seed: 42
+
+DATA STRUCTURE:
+- metadata.csv: Combined metadata for all clients
+  - 'client' column: beskydy, nps, sumava (geographic regions)
+  - 'split' column: train, query, gallery
+  - 'identity' column: individual animal IDs
+
+USAGE:
+Load metadata.csv and filter by 'client' and 'split' columns
+to access data for specific federated learning scenarios.
