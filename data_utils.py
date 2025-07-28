@@ -234,10 +234,8 @@ class Data():
         # Use client-specific transform if available, otherwise use default
         if dataset in self.transforms_dict:
             transform = self.transforms_dict[dataset]['train_transform']
-            print(f"Using {self.transforms_dict[dataset]['name']} transforms for client {dataset}")
         else:
             transform = self.data_transforms['train']
-            print(f"Using default transforms for client {dataset}")
         
         client_train_data = self.unified_metadata[
             (self.unified_metadata['split'] == 'train') & 
@@ -295,7 +293,6 @@ class Data():
             (self.unified_metadata['client'] == -1)
         ].copy()
         
-        print(f"Global test data - Query: {len(global_query_data)} samples, Gallery: {len(global_gallery_data)} samples")
         
         # Create test loaders for each client using global data with client-specific transforms
         for client_name in self.datasets:
@@ -306,13 +303,10 @@ class Data():
             if client_name in self.transforms_dict:
                 transform = self.transforms_dict[client_name]['test_transform']
                 transform_name = self.transforms_dict[client_name]['name']
-                print(f"Creating test set for client {client_name} using {transform_name} transforms")
             else:
                 transform = self.data_transforms['val']
                 transform_name = 'default'
-                print(f"Creating test set for client {client_name} using {transform_name} transforms")
             
-            print(f"Client {client_name} - Query: {len(global_query_data)} samples, Gallery: {len(global_gallery_data)} samples")
             
             # Use the same global data but with client-specific transforms
             query_dataset = self._create_dataset(global_query_data, transform)
