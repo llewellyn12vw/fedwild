@@ -169,7 +169,7 @@ def train_fd():
         server.train(i, args.cdw, use_cuda,i)
         save_path = os.path.join(dir_name, 'federated_model.pth')
         torch.save(server.federated_model.cpu().state_dict(), save_path)
-        if (i+1)%1 == 0:
+        if (i+1)%10 == 0:
             if args.kd:
                 server.knowledge_distillation(args.regularization, round=i+1)
             server.test(use_cuda)

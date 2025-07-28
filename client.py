@@ -252,45 +252,6 @@ class Client():
         print('Client', self.cid, 'Training complete in {:.0f}m {:.0f}s'.format(
             time_elapsed // 60, time_elapsed % 60))
         
-        # Compute cosine similarity between global and local model every 10 rounds when FedGKD is not active
-        if (rnd == 0 or rnd % 10 == 0) and not self.fedgkd_enabled:
-            self.model.eval()
-            global_model_copy.eval()
-            
-            # Sample a batch from training data to compute feature similarity
-            sample_data = next(iter(self.train_loader))
-            sample_inputs, _ = sample_data
-            if use_cuda:
-                sample_inputs = sample_inputs.cuda()
-            
-            with torch.no_grad():
-                # Extract features from both models
-                local_features = self.model.backbone(sample_inputs)
-                local_features = self.model.feature_head(local_features)
-                
-                global_features = global_model_copy.backbone(sample_inputs)
-                global_features = global_model_copy.feature_head(global_features)
-                
-                # Compute cosine similarity
-                cosine_similarity = self.compute_cosine_sim(local_features, global_features)
-                
-                print(f"Client {self.cid} Round {rnd}: Global-Local Cosine Similarity = {cosine_similarity:.4f}")
-                
-                # Log to CSV file
-                result_dir = os.path.join(self.project_dir, 'model', self.experiment_name, f'client_{self.cid}')
-                os.makedirs(result_dir, exist_ok=True)
-                
-                csv_file = os.path.join(result_dir, 'global_local_cosine_sim.csv')
-                file_exists = os.path.isfile(csv_file)
-                row_data = [self.cid, rnd, f"{cosine_similarity:.6f}"]
-                
-                with open(csv_file, 'a', newline='') as f:
-                    writer = csv.writer(f)
-                    if not file_exists:
-                        header = ['client', 'round', 'global_local_cosine_sim']
-                        writer.writerow(header)
-                    writer.writerow(row_data)
-        
         # Store classifier and remove for federated aggregation
         self.classifier = self.model.classifier
         self.distance = self.optimization.cdw_feature_distance(federated_model, self.old_classifier, self.model)
