@@ -2,9 +2,9 @@
 
 # Test fixed FedGKD implementation with better parameters
 
-python main.py --ex_name lepoes  --cdw \
+python main.py --ex_name leopard/reg/1  --cdw \
     --local_epoch 2 \
-    --num_of_clients 3 \
+    --num_of_clients 5 \
     --total_rounds 100 \
     --metadata_file /home/wellvw12/fedwild/federated_leopards/metadata.csv \
     --dataset_type leopard \

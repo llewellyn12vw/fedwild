@@ -1,7 +1,7 @@
 {
   "experiment_info": {
-    "name": "lepoes",
-    "timestamp": "2025-07-28T14:31:07.445381",
+    "name": "leopard/reg/1",
+    "timestamp": "2025-07-28T15:01:05.298321",
     "total_rounds": 100,
     "project_dir": ".",
     "data_dir": "/home/wellvw12/fedwild/MacaqueFaces"
@@ -23,7 +23,7 @@
     "learning_rate": 0.001,
     "batch_size": 32,
     "local_epoch": 2,
-    "num_of_clients": 3,
+    "num_of_clients": 5,
     "cosine_annealing": false,
     "eta_min": 1e-05
   },

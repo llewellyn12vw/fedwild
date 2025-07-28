@@ -9,25 +9,49 @@ from collections import defaultdict
 def parse_args():
     parser = argparse.ArgumentParser(description='Federated Data Splitter with Client Allocation')
     parser.add_argument('--dataset_path', default='/home/wellvw12/leopard', type=str, help='Path to dataset')
-    parser.add_argument('--output_dir', default='/home/wellvw12/fedwild/federated_leopards', type=str, help='Output directory')
+    parser.add_argument('--output_dir', default='/home/wellvw12/fedwild/federated_leopards_mild', type=str, help='Output directory')
     parser.add_argument('--dataset_type', default='leopard', choices=['leopard', 'macaque'], help='Dataset type')
     
     # Query/Gallery parameters
-    parser.add_argument('--query_size', default=20, type=int, help='Number of query samples (IDs)')
+    parser.add_argument('--query_size', default=30, type=int, help='Number of query samples (IDs)')
     parser.add_argument('--samples_per_query_id', default=2, type=int, help='Number of samples per query ID')
-    parser.add_argument('--samples_per_gallery_id', default=4, type=int, help='Number of samples per gallery ID')
+    parser.add_argument('--samples_per_gallery_id', default=5, type=int, help='Number of samples per gallery ID')
     
     # Client federation parameters
     parser.add_argument('--num_clients', default=5, type=int, help='Number of federated clients')
-    parser.add_argument('--alpha', default=0.4, type=float, help='Dirichlet alpha parameter (lower = more heterogeneous)')
+    parser.add_argument('--alpha', default=0.9, type=float, help='Dirichlet alpha parameter (lower = more heterogeneous)')
     
     # General parameters
     parser.add_argument('--min_samples_per_id', default=2, type=int, help='Minimum samples per ID for inclusion')
-    parser.add_argument('--max_samples_per_id', default=40, type=int, help='Maximum samples per ID to include in training (None = no limit)')
+    parser.add_argument('--max_samples_per_id', default=100, type=int, help='Maximum samples per ID to include in training (None = no limit)')
     parser.add_argument('--min_train_samples_per_id', default=2, type=int, help='Minimum samples per ID in training data')
+    parser.add_argument('--exclude_unknown', default=True, type=bool, help='Exclude samples with unknown identities')
     parser.add_argument('--random_seed', default=56, type=int, help='Random seed for reproducibility')
     
     return parser.parse_args()
+
+def exclude_unknown_identities(metadata):
+    """Exclude samples with 'unknown' identity labels"""
+    print(f"\nExcluding 'unknown' identities...")
+    original_count = len(metadata)
+    original_ids = metadata['identity'].nunique()
+    
+    # Filter out unknown identities (case-insensitive)
+    filtered_metadata = metadata[
+        ~metadata['identity'].astype(str).str.lower().isin(['unknown', 'nan', 'none', ''])
+    ].copy()
+    
+    # Also filter out NaN values
+    filtered_metadata = filtered_metadata.dropna(subset=['identity'])
+    
+    excluded_count = original_count - len(filtered_metadata)
+    remaining_ids = filtered_metadata['identity'].nunique()
+    
+    print(f"  Excluded {excluded_count} samples with unknown identities")
+    print(f"  Original: {original_count} samples ({original_ids} IDs)")
+    print(f"  Remaining: {len(filtered_metadata)} samples ({remaining_ids} IDs)")
+    
+    return filtered_metadata
 
 def filter_ids_by_sample_count(metadata, min_samples):
     """Filter to keep only IDs that have at least min_samples"""
@@ -317,6 +341,7 @@ def main():
     print(f"Minimum samples per ID: {args.min_samples_per_id}")
     print(f"Maximum samples per ID: {args.max_samples_per_id if args.max_samples_per_id else 'unlimited'}")
     print(f"Minimum training samples per ID: {args.min_train_samples_per_id}")
+    print(f"Exclude unknown identities: {args.exclude_unknown}")
     print(f"Random seed: {args.random_seed}")
     
     # Load dataset
@@ -334,6 +359,12 @@ def main():
     # Save full annotations
     dataset.to_csv("annotations.csv", index=False)
     print("Saved full annotations to annotations.csv")
+    
+    # Exclude unknown identities first (if enabled)
+    if args.exclude_unknown:
+        dataset = exclude_unknown_identities(dataset)
+    else:
+        print("\nSkipping unknown identity exclusion (disabled by --exclude_unknown=False)")
     
     # Filter dataset to keep only IDs with sufficient samples
     print(f"\nFiltering IDs with at least {args.min_samples_per_id} samples...")
