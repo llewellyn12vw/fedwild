@@ -4,27 +4,22 @@
 
 
 
-python main.py --fedgkd --ex_name leopard_final/fedgdk/1 \
-    --fedgkd_distillation_coeff 0.5 \
-    --fedgkd_buffer_length 5 \
+python main.py --ex_name leopard_final/fedgdk/1 \
     --local_epoch 1 \
     --num_of_clients 5 \
     --total_rounds 100 \
-    --metadata_file /home/wellvw12/fedwild/federated_leopards_final/metadata.csv \
-    --dataset_type leopard \
-    --fedgkd_avg_param \
-    --fedgkd_start_round 0 \
-    --use_original_transform_only
+    --metadata_file /home/wellvw12/fedwild/macaque_help/metadata.csv \
+    --dataset_type macaques \
 
-python main.py --fedgkd --ex_name leopard_final/fedgdk/2 \
-    --fedgkd_distillation_coeff 0.5 \
-    --fedgkd_buffer_length 5 \
-    --local_epoch 1 \
-    --num_of_clients 5 \
-    --total_rounds 100 \
-    --metadata_file /home/wellvw12/fedwild/federated_leopards_final/metadata.csv \
-    --dataset_type leopard \
-    --fedgkd_avg_param \
-    --fedgkd_start_round 0 \
+# python main.py --fedgkd --ex_name leopard_final/fedgdk/2 \
+#     --fedgkd_distillation_coeff 0.5 \
+#     --fedgkd_buffer_length 5 \
+#     --local_epoch 1 \
+#     --num_of_clients 5 \
+#     --total_rounds 100 \
+#     --metadata_file /home/wellvw12/fedwild/federated_leopards_final/metadata.csv \
+#     --dataset_type leopard \
+#     --fedgkd_avg_param \
+#     --fedgkd_start_round 0 \
 
 

@@ -47,7 +47,6 @@ class Client():
         self.fedgkd_ensemble_teacher = None
         self.fedgkd_distillation_coeff = 0.1
         self.fedgkd_temperature = 2.0
-        # print("class name size",class_names_size[cid])
         self.epoch_cosine_distances = []  # Store cosine distances for each epoch
 
     def update_learning_rate(self, round_num):
@@ -92,23 +91,26 @@ class Client():
         with torch.no_grad():
             teacher_features = self.fedgkd_ensemble_teacher.backbone(inputs)
             teacher_features = self.fedgkd_ensemble_teacher.feature_head(teacher_features)
-        
-        if student_features.shape != teacher_features.shape:
-            print(f"ERROR: Feature dimension mismatch - Student: {student_features.shape}, Teacher: {teacher_features.shape}")
-            return torch.tensor(0.0, device=self.device, requires_grad=True)
-        
+                
         # Normalize features for stable similarity computation
         student_features_norm = self.normalize_features(student_features)
         teacher_features_norm = self.normalize_features(teacher_features.detach())
+        
+        print(f"[DEBUG] Student features norm: mean={student_features_norm.mean().item():.4f}, std={student_features_norm.std().item():.4f}")
+        print(f"[DEBUG] Teacher features norm: mean={teacher_features_norm.mean().item():.4f}, std={teacher_features_norm.std().item():.4f}")
         
         # Compute per-sample cosine similarity and distances
         cosine_sim = F.cosine_similarity(student_features_norm, teacher_features_norm, dim=1)  # [batch_size]
         cosine_distance = 1.0 - cosine_sim  # [batch_size]
 
         batch_mean_distance = torch.mean(cosine_distance).item()  # Convert to Python float
+        print(f"[DEBUG] Cosine similarity: min={cosine_sim.min().item():.4f}, max={cosine_sim.max().item():.4f}, mean={cosine_sim.mean().item():.4f}")
+        print(f"[DEBUG] Cosine distance: min={cosine_distance.min().item():.4f}, max={cosine_distance.max().item():.4f}, mean={batch_mean_distance:.4f}")
+        
         self.epoch_cosine_distances.append(batch_mean_distance)
         # === TEMPERATURE SCALING BASED ON COSINE DISTANCE ===
         adaptive_temperatures = self.compute_adaptive_temperatures(cosine_distance)
+        print(f"[DEBUG] Adaptive temperatures: min={adaptive_temperatures.min().item():.4f}, max={adaptive_temperatures.max().item():.4f}, mean={adaptive_temperatures.mean().item():.4f}")
         
         # Apply temperature scaling to features and compute losses
         temperature_scaled_loss = self.compute_temperature_scaled_losses(
@@ -116,12 +118,11 @@ class Client():
             cosine_sim, cosine_distance, adaptive_temperatures
         )
         
-        if hasattr(self, '_debug_counter'):
-            self._debug_counter += 1
-        else:
-            self._debug_counter = 0
+        final_loss = temperature_scaled_loss * self.fedgkd_distillation_coeff
+        print(f"[DEBUG] Temperature scaled loss: {temperature_scaled_loss.item():.6f}")
+        print(f"[DEBUG] Final distillation loss: {final_loss.item():.6f}")
         
-        return temperature_scaled_loss * self.fedgkd_distillation_coeff
+        return final_loss
 
     def compute_adaptive_temperatures(self, cosine_distance):
         """

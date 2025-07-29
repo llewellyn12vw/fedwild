@@ -238,6 +238,7 @@ class Data():
             print(f"Client {dataset}: Using original transform '0' for training")
         else:
             # Use client-specific transform if available, otherwise use default
+            print(f"Client {dataset}: Using client-specific transform")
             if dataset in self.transforms_dict:
                 transform = self.transforms_dict[dataset]['train_transform']
             else:
@@ -311,6 +312,7 @@ class Data():
                 print(f"Client {client_name}: Using original transform '0' for testing")
             else:
                 # Use client-specific transform if available, otherwise use default
+                print(f"Client {client_name}: Using client-specific transform for testing")
                 if client_name in self.transforms_dict:
                     transform = self.transforms_dict[client_name]['test_transform']
                 else:
