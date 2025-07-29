@@ -55,6 +55,8 @@ parser.add_argument('--num_of_clients', default=2, type=int, help='number of cli
 # arguments for data transformation
 parser.add_argument('--erasing_p', default=0, type=float, help='Random Erasing probability, in [0,1]')
 parser.add_argument('--color_jitter', action='store_true', help='use color jitter in training' )
+parser.add_argument('--use_original_transform_only', action='store_true', help='use only original transform "0" for testing, default false' )
+
 
 # arguments for testing federated model
 parser.add_argument('--which_epoch',default='last', type=str, help='0,1,2,3...or last')
@@ -91,7 +93,7 @@ def train_fd():
 
     set_random_seed(1)
 
-    data = Data(args.datasets, args.data_dir, args.batch_size, args.erasing_p, args.color_jitter, args.train_all, args.dataset_type, args.metadata_file, args.image_size)
+    data = Data(args.datasets, args.data_dir, args.batch_size, args.erasing_p, args.color_jitter, args.train_all, args.dataset_type, args.metadata_file, args.image_size,args.use_original_transform_only)
     data.preprocess()
     
     clients = {}
@@ -128,6 +130,7 @@ def train_fd():
         args.ex_name,
         args.model,
         args.kd_lr_ratio,
+        args.use_original_transform_only,
     )
     
     # Configure FedGKD if enabled

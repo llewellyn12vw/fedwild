@@ -63,7 +63,7 @@ def aggregate_models(models, weights):
 
 
 class Server():
-    def __init__(self, clients, data, device, project_dir, model_name, num_of_clients, lr, drop_rate, stride, multiple_scale,experiment_name,model, kd_lr_ratio=0.05):
+    def __init__(self, clients, data, device, project_dir, model_name, num_of_clients, lr, drop_rate, stride, multiple_scale,experiment_name,model, kd_lr_ratio=0.05, use_original_transform_only=False):
         self.project_dir = project_dir
         self.data = data
         self.device = device
@@ -79,6 +79,7 @@ class Server():
         self.stride = stride
         self.experiment_name = experiment_name
         self.model = model
+        self.one_global_test = use_original_transform_only  # Flag for single global test
         
         # FedGKD-specific parameters
         self.fedgkd_enabled = False
@@ -368,6 +369,7 @@ class Server():
         # Test global model on each client's dataset
         for dataset in self.data.datasets:
             if dataset == '-1': continue  # Skip global test set, focus on client-specific datasets
+            if self.one_global_test and dataset != '0': continue
             
             print(f"Evaluating global model on client {dataset} dataset")
             self.federated_model = self.federated_model.eval()
