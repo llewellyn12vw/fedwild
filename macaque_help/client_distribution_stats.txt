@@ -1,0 +1,72 @@
+============================================================
+FEDERATED DATA DISTRIBUTION STATISTICS
+============================================================
+
+CONFIGURATION:
+------------------------------
+Dataset: macaque
+Number of clients: 5
+Dirichlet alpha: 0.9
+Query size: 7 IDs
+Samples per query ID: 2
+Samples per gallery ID: 5
+Minimum samples per ID: 2
+Maximum samples per ID: 100
+Minimum training samples per ID: 2
+Random seed: 27
+
+OVERALL STATISTICS:
+------------------------------
+Total samples: 3400
+Total unique IDs: 34
+
+SPLIT DISTRIBUTION:
+------------------------------
+Train: 3351 samples, 34 unique IDs
+Query: 14 samples, 7 unique IDs
+Gallery: 35 samples, 7 unique IDs
+
+CLIENT DISTRIBUTION:
+------------------------------
+Client 0: 200 samples, 2 unique IDs
+  - Samples per ID: min=100, max=100, mean=100.0
+  - Top 5 IDs: ['Umbrella', 'Love']
+Client 1: 786 samples, 8 unique IDs
+  - Samples per ID: min=93, max=100, mean=98.2
+  - Top 5 IDs: ['Sizzle', 'Shirley', 'Serena', 'Libby', 'Tes']
+Client 2: 200 samples, 2 unique IDs
+  - Samples per ID: min=100, max=100, mean=100.0
+  - Top 5 IDs: ['Meg', 'Linz']
+Client 3: 1379 samples, 14 unique IDs
+  - Samples per ID: min=93, max=100, mean=98.5
+  - Top 5 IDs: ['Ocelot', 'Teal', 'Judd', 'Tass', 'Maj']
+Client 4: 786 samples, 8 unique IDs
+  - Samples per ID: min=93, max=100, mean=98.2
+  - Top 5 IDs: ['Dan', 'Tea', 'Saphy', 'Verity', 'Sol']
+
+HETEROGENEITY ANALYSIS:
+------------------------------
+Sample distribution across clients:
+  - Min: 200 samples
+  - Max: 1379 samples
+  - Mean: 670.2 samples
+  - Std: 440.8 samples
+  - Coefficient of Variation: 0.658
+
+ID distribution across clients:
+  - Min: 2 IDs
+  - Max: 14 IDs
+  - Mean: 6.8 IDs
+  - Std: 4.5 IDs
+  - Coefficient of Variation: 0.660
+
+DATA OVERLAP ANALYSIS:
+------------------------------
+Total unique training IDs across all clients: 34
+Overlapping IDs between clients: 0
+Data isolation: Perfect
+
+DIRICHLET PARAMETER INTERPRETATION:
+------------------------------
+α < 1.0: Slightly heterogeneous (mildly non-IID)
+Current α = 0.9: Highly imbalanced distribution

@@ -142,15 +142,15 @@ class Data():
                     transforms.Pad(10),
                     transforms.RandomCrop((self.image_size, self.image_size)),
                     transforms.RandomHorizontalFlip(),
-                    BrightenTransform(factor=1.5),
+                    BrightenTransform(factor=1.4),
                     transforms.ColorJitter(contrast=0.2),
                     transforms.ToTensor(),
                     transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
                 ]),
                 'test_transform': transforms.Compose([
                     transforms.Resize(size=(self.image_size, self.image_size), interpolation=3),
-                    BrightenTransform(factor=1.7),
-                    transforms.ColorJitter(contrast=0.3),
+                    BrightenTransform(factor=1.4),
+                    transforms.ColorJitter(contrast=0.2),
                     transforms.ToTensor(),
                     transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
                 ])

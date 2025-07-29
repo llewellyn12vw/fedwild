@@ -48,6 +48,7 @@ class Client():
         self.fedgkd_distillation_coeff = 0.1
         self.fedgkd_temperature = 2.0
         # print("class name size",class_names_size[cid])
+        self.epoch_cosine_distances = []  # Store cosine distances for each epoch
 
     def update_learning_rate(self, round_num):
         """Update learning rate based on scheduling strategy"""
@@ -103,7 +104,9 @@ class Client():
         # Compute per-sample cosine similarity and distances
         cosine_sim = F.cosine_similarity(student_features_norm, teacher_features_norm, dim=1)  # [batch_size]
         cosine_distance = 1.0 - cosine_sim  # [batch_size]
-        
+
+        batch_mean_distance = torch.mean(cosine_distance).item()  # Convert to Python float
+        self.epoch_cosine_distances.append(batch_mean_distance)
         # === TEMPERATURE SCALING BASED ON COSINE DISTANCE ===
         adaptive_temperatures = self.compute_adaptive_temperatures(cosine_distance)
         
@@ -112,6 +115,11 @@ class Client():
             student_features, teacher_features,
             cosine_sim, cosine_distance, adaptive_temperatures
         )
+        
+        if hasattr(self, '_debug_counter'):
+            self._debug_counter += 1
+        else:
+            self._debug_counter = 0
         
         return temperature_scaled_loss * self.fedgkd_distillation_coeff
 
@@ -141,17 +149,11 @@ class Client():
 
     def compute_temperature_scaled_losses(self, student_features, teacher_features, 
                                         cosine_sim, cosine_distance, temperatures):
-        """
-        Compute temperature-scaled CSKD losses
-        """
         batch_size = student_features.shape[0]
-        
         # Temperature constants
         T_min = 0.5
         T_max = 2.5
-        
-        # === 1. TEMPERATURE-SCALED GUIDANCE MAP ===
-        # Base guidance map
+
         base_guidance = (1.0 + cosine_sim).unsqueeze(1)  # [batch_size, 1]
         
         # Temperature modulation - higher temp = stronger guidance for dissimilar samples
@@ -195,22 +197,10 @@ class Client():
         
         return total_loss
     
-    def compute_cosine_sim(self, student_features, teacher_features):
-        """Compute cosine similarity between student and teacher features"""
-        if student_features.shape != teacher_features.shape:
-            print(f"ERROR: Feature dimension mismatch - Student: {student_features.shape}, Teacher: {teacher_features.shape}")
-            return torch.tensor(0.0, device=self.device, requires_grad=True)
-        
-        # Normalize features for stable similarity computation
-        student_features_norm = self.normalize_features(student_features)
-        teacher_features_norm = self.normalize_features(teacher_features.detach())
-        
-        cosine_sim = F.cosine_similarity(student_features_norm, teacher_features_norm, dim=1)
-        return cosine_sim.mean()
-    
     def train(self, federated_model, use_cuda,rnd):
         self.y_err = []
         self.y_loss = []
+        self.epoch_cosine_distances = []
         #rnd = round
         self.update_learning_rate(rnd)
         
@@ -261,10 +251,8 @@ class Client():
                 loss = criterion(outputs, labels)
                 
                 if self.fedgkd_enabled:
-                    classification_loss = loss.item()
                     fedgkd_loss = self.compute_fedgkd_distillation_loss(student_features, inputs)
                     loss += fedgkd_loss
-                    # print(f"Client {self.cid} - Classification: {classification_loss:.4f}, FedGKD: {fedgkd_loss.item():.4f}, Total: {loss.item():.4f}, Ratio: {fedgkd_loss.item()/classification_loss:.3f}")
                 
                 _, preds = torch.max(outputs.data, 1)
                                 
@@ -296,8 +284,35 @@ class Client():
         
         # Store classifier and remove for federated aggregation
         self.classifier = self.model.classifier
-        self.distance = self.optimization.cdw_feature_distance(federated_model, self.old_classifier, self.model)
+
+        self.distance = self.optimization.cdw_feature_distance(federated_model, self.model)
         
+        result_dir = os.path.join(self.project_dir, 'model', self.experiment_name, f'client_{self.cid}')
+        os.makedirs(result_dir, exist_ok=True)
+
+        csv_file = os.path.join(result_dir, 'cosine_sim.csv')
+        file_exists = os.path.isfile(csv_file)
+        row_data = [f"{rnd:.4f}",f"{self.distance:.4f}"]
+
+        with open(csv_file, 'a', newline='') as f:
+            writer = csv.writer(f)
+            if not file_exists:
+                header = ['round', 'cosine_sim']
+                writer.writerow(header)
+            writer.writerow(row_data)
+            
+        if self.fedgkd_enabled:
+            csv_file = os.path.join(result_dir, 'ensemble_cosine_sim.csv')
+            file_exists = os.path.isfile(csv_file)
+            epoch_avg_distance = sum(self.epoch_cosine_distances) / len(self.epoch_cosine_distances)
+            row_data = [f"{rnd:.4f}",f"{epoch_avg_distance:.4f}"]
+            with open(csv_file, 'a', newline='') as f:
+                writer = csv.writer(f)
+                if not file_exists:
+                    header = ['round', 'cosine_ensemble_sim']
+                    writer.writerow(header)
+                writer.writerow(row_data)
+
         self.model.classifier = nn.Sequential()  # Remove for federated aggregation
         
         result_dir = os.path.join(self.project_dir, 'model',self.experiment_name, f'client_{self.cid}')
