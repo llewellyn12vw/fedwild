@@ -5,60 +5,54 @@ FEDERATED DATA DISTRIBUTION STATISTICS
 CONFIGURATION:
 ------------------------------
 Dataset: macaque
-Number of clients: 5
-Dirichlet alpha: 0.9
+Number of clients: 3
+Dirichlet alpha: 0.6
 Query size: 7 IDs
 Samples per query ID: 2
-Samples per gallery ID: 5
+Samples per gallery ID: 8
 Minimum samples per ID: 2
-Maximum samples per ID: 20
+Maximum samples per ID: 40
 Minimum training samples per ID: 2
-Random seed: 27
+Random seed: 56
 
 OVERALL STATISTICS:
 ------------------------------
-Total samples: 680
+Total samples: 1360
 Total unique IDs: 34
 
 SPLIT DISTRIBUTION:
 ------------------------------
-Train: 631 samples, 34 unique IDs
+Train: 1290 samples, 34 unique IDs
 Query: 14 samples, 7 unique IDs
-Gallery: 35 samples, 7 unique IDs
+Gallery: 56 samples, 7 unique IDs
 
 CLIENT DISTRIBUTION:
 ------------------------------
-Client 0: 40 samples, 2 unique IDs
-  - Samples per ID: min=20, max=20, mean=20.0
-  - Top 5 IDs: ['Umbrella', 'Love']
-Client 1: 146 samples, 8 unique IDs
-  - Samples per ID: min=13, max=20, mean=18.2
-  - Top 5 IDs: ['Sizzle', 'Shirley', 'Serena', 'Libby', 'Tes']
-Client 2: 40 samples, 2 unique IDs
-  - Samples per ID: min=20, max=20, mean=20.0
-  - Top 5 IDs: ['Meg', 'Linz']
-Client 3: 259 samples, 14 unique IDs
-  - Samples per ID: min=13, max=20, mean=18.5
-  - Top 5 IDs: ['Ocelot', 'Teal', 'Judd', 'Tass', 'Maj']
-Client 4: 146 samples, 8 unique IDs
-  - Samples per ID: min=13, max=20, mean=18.2
-  - Top 5 IDs: ['Dan', 'Tea', 'Saphy', 'Verity', 'Sol']
+Client 0: 900 samples, 24 unique IDs
+  - Samples per ID: min=30, max=40, mean=37.5
+  - Top 5 IDs: ['Sol', 'Teal', 'Venus', 'Shirley', 'Tes']
+Client 1: 280 samples, 7 unique IDs
+  - Samples per ID: min=40, max=40, mean=40.0
+  - Top 5 IDs: ['Love', 'Spice', 'Serena', 'Rupee', 'Thyme']
+Client 2: 110 samples, 3 unique IDs
+  - Samples per ID: min=30, max=40, mean=36.7
+  - Top 5 IDs: ['Lala', 'Mindy', 'Tamara']
 
 HETEROGENEITY ANALYSIS:
 ------------------------------
 Sample distribution across clients:
-  - Min: 40 samples
-  - Max: 259 samples
-  - Mean: 126.2 samples
-  - Std: 81.6 samples
-  - Coefficient of Variation: 0.646
+  - Min: 110 samples
+  - Max: 900 samples
+  - Mean: 430.0 samples
+  - Std: 339.5 samples
+  - Coefficient of Variation: 0.790
 
 ID distribution across clients:
-  - Min: 2 IDs
-  - Max: 14 IDs
-  - Mean: 6.8 IDs
-  - Std: 4.5 IDs
-  - Coefficient of Variation: 0.660
+  - Min: 3 IDs
+  - Max: 24 IDs
+  - Mean: 11.3 IDs
+  - Std: 9.1 IDs
+  - Coefficient of Variation: 0.803
 
 DATA OVERLAP ANALYSIS:
 ------------------------------
@@ -69,4 +63,4 @@ Data isolation: Perfect
 DIRICHLET PARAMETER INTERPRETATION:
 ------------------------------
 α < 1.0: Slightly heterogeneous (mildly non-IID)
-Current α = 0.9: Highly imbalanced distribution
+Current α = 0.6: Highly imbalanced distribution
