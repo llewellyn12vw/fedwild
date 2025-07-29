@@ -1,0 +1,24 @@
+============================================================
+METADATA INFORMATION
+============================================================
+
+Metadata Source: /home/wellvw12/fedwild/macaque_help/metadata.csv
+Metadata CSV Path: /home/wellvw12/fedwild/macaque_help/metadata.csv
+
+METADATA STATISTICS:
+------------------------------
+Total Samples: 1360
+Total Unique IDs: 34
+
+Split Distribution:
+  train: 1290 samples (34 unique IDs)
+  gallery: 56 samples (7 unique IDs)
+  query: 14 samples (7 unique IDs)
+
+Client Distribution:
+  Shared (query/gallery): 70 samples
+  Client 0: 900 training samples (24 unique IDs)
+  Client 1: 280 training samples (7 unique IDs)
+  Client 2: 110 training samples (3 unique IDs)
+
+============================================================

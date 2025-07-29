@@ -1,0 +1,59 @@
+================================================================================
+FEDERATED LEARNING EXPERIMENT SUMMARY
+================================================================================
+
+EXPERIMENT INFORMATION:
+----------------------------------------
+Name: macaque_help/reg/2
+Timestamp: 2025-07-29T21:15:27.440381
+Total Rounds: 100
+
+DATASET CONFIGURATION:
+----------------------------------------
+Dataset Type: macaque
+Client Datasets: beskydy,nps,sumava
+Metadata File: /home/wellvw12/fedwild/macaque_help/metadata.csv
+Use All Training Data: False
+Image Size: 128x128
+
+MODEL CONFIGURATION:
+----------------------------------------
+Model Architecture: resnet18_ft_net
+Model Name: federated_model
+Drop Rate: 0.03
+Stride: 2
+
+TRAINING CONFIGURATION:
+----------------------------------------
+Learning Rate: 0.001
+Batch Size: 32
+Local Epochs: 1
+Number of Clients: 3
+Cosine Annealing: False
+
+OPTIMIZATION TECHNIQUES:
+----------------------------------------
+Cosine Distance Weighting (CDW): False
+Knowledge Distillation (KD): False
+
+FEDGKD CONFIGURATION:
+----------------------------------------
+FedGKD Enabled: False
+
+DATA AUGMENTATION:
+----------------------------------------
+Random Erasing Probability: 0
+Color Jitter: False
+
+SYSTEM INFORMATION:
+----------------------------------------
+Platform: Linux-5.10.0-35-cloud-amd64-x86_64-with-glibc2.31
+Python Version: 3.10.15
+PyTorch Version: 2.7.1+cu126
+CUDA Available: True
+CUDA Version: 12.6
+GPU Count: 1
+
+================================================================================
+Configuration saved at: 2025-07-29T21:15:27.442999
+================================================================================
