@@ -1,0 +1,62 @@
+{
+  "experiment_info": {
+    "name": "macaque_help/fedgdk/1",
+    "timestamp": "2025-07-29T20:15:28.300186",
+    "total_rounds": 100,
+    "project_dir": ".",
+    "data_dir": "/home/wellvw12/fedwild/MacaqueFaces"
+  },
+  "dataset_config": {
+    "dataset_type": "macaque",
+    "datasets": "beskydy,nps,sumava",
+    "metadata_file": "/home/wellvw12/fedwild/macaque_help/metadata.csv",
+    "train_all": false,
+    "image_size": 128
+  },
+  "model_config": {
+    "model": "resnet18_ft_net",
+    "model_name": "federated_model",
+    "drop_rate": 0.03,
+    "stride": 2
+  },
+  "training_config": {
+    "learning_rate": 0.001,
+    "batch_size": 32,
+    "local_epoch": 1,
+    "num_of_clients": 5,
+    "cosine_annealing": false,
+    "eta_min": 1e-05
+  },
+  "data_augmentation": {
+    "erasing_p": 0,
+    "color_jitter": false
+  },
+  "optimization": {
+    "cdw": false,
+    "kd": false,
+    "regularization": false,
+    "kd_lr_ratio": 0.1
+  },
+  "fedgkd_config": {
+    "enabled": true,
+    "buffer_length": 5,
+    "distillation_coeff": 0.5,
+    "temperature": 2.0,
+    "avg_param": true,
+    "start_round": 0
+  },
+  "testing_config": {
+    "which_epoch": "last",
+    "multi": false,
+    "multiple_scale": "1",
+    "test_dir": "all"
+  },
+  "system_info": {
+    "platform": "Linux-5.10.0-35-cloud-amd64-x86_64-with-glibc2.31",
+    "python_version": "3.10.15",
+    "pytorch_version": "2.7.1+cu126",
+    "cuda_available": true,
+    "cuda_version": "12.6",
+    "device_count": 1
+  }
+}

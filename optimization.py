@@ -18,9 +18,12 @@ class Optimization():
             inputs=inputs.to(self.device)
 
             with torch.no_grad():
-                # Get features from both models
-                old_features = old_model(inputs)
-                new_features = new_model(inputs)
+                # Get feature representations (before classifier) from both models
+                old_backbone_features = old_model.backbone(inputs)
+                old_features = old_model.feature_head(old_backbone_features)
+                
+                new_backbone_features = new_model.backbone(inputs)
+                new_features = new_model.feature_head(new_backbone_features)
 
             distance = 1 - torch.cosine_similarity(old_features, new_features)
             return torch.mean(distance)

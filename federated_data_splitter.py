@@ -23,7 +23,7 @@ def parse_args():
     
     # General parameters
     parser.add_argument('--min_samples_per_id', default=2, type=int, help='Minimum samples per ID for inclusion')
-    parser.add_argument('--max_samples_per_id', default=100, type=int, help='Maximum samples per ID to include in training (None = no limit)')
+    parser.add_argument('--max_samples_per_id', default=20, type=int, help='Maximum samples per ID to include in training (None = no limit)')
     parser.add_argument('--min_train_samples_per_id', default=2, type=int, help='Minimum samples per ID in training data')
     parser.add_argument('--exclude_unknown', default=True, type=bool, help='Exclude samples with unknown identities')
     parser.add_argument('--random_seed', default=27, type=int, help='Random seed for reproducibility')
