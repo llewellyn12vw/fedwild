@@ -19,14 +19,14 @@ def parse_args():
     
     # Client federation parameters
     parser.add_argument('--num_clients', default=5, type=int, help='Number of federated clients')
-    parser.add_argument('--alpha', default=0.8, type=float, help='Dirichlet alpha parameter (lower = more heterogeneous)')
+    parser.add_argument('--alpha', default=0.9, type=float, help='Dirichlet alpha parameter (lower = more heterogeneous)')
     
     # General parameters
     parser.add_argument('--min_samples_per_id', default=2, type=int, help='Minimum samples per ID for inclusion')
-    parser.add_argument('--max_samples_per_id', default=None, type=int, help='Maximum samples per ID to include in training (None = no limit)')
+    parser.add_argument('--max_samples_per_id', default=100, type=int, help='Maximum samples per ID to include in training (None = no limit)')
     parser.add_argument('--min_train_samples_per_id', default=2, type=int, help='Minimum samples per ID in training data')
     parser.add_argument('--exclude_unknown', default=True, type=bool, help='Exclude samples with unknown identities')
-    parser.add_argument('--random_seed', default=35, type=int, help='Random seed for reproducibility')
+    parser.add_argument('--random_seed', default=27, type=int, help='Random seed for reproducibility')
     
     return parser.parse_args()
 

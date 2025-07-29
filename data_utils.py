@@ -69,7 +69,7 @@ class CompressionArtifacts:
 
 
 class Data():
-    def __init__(self, datasets, data_dir, batch_size, erasing_p, color_jitter, train_all, dataset_type, metadata_file=None, image_size=128):
+    def __init__(self, datasets, data_dir, batch_size, erasing_p, color_jitter, train_all, dataset_type, metadata_file=None, image_size=128, use_original_transform_only=False):
         self.datasets = datasets.split(',')
         self.batch_size = batch_size
         self.erasing_p = erasing_p
@@ -79,6 +79,7 @@ class Data():
         self.dataset_type = dataset_type
         self.metadata_file = metadata_file
         self.image_size = image_size  # Dynamic image size
+        self.use_original_transform_only = use_original_transform_only  # Option to use only transform '0'
 
             
         self.unified_metadata = pd.read_csv(self.metadata_file)
@@ -141,8 +142,8 @@ class Data():
                     transforms.Pad(10),
                     transforms.RandomCrop((self.image_size, self.image_size)),
                     transforms.RandomHorizontalFlip(),
-                    BrightenTransform(factor=1.7),
-                    transforms.ColorJitter(contrast=0.3),
+                    BrightenTransform(factor=1.5),
+                    transforms.ColorJitter(contrast=0.2),
                     transforms.ToTensor(),
                     transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
                 ]),
@@ -231,11 +232,16 @@ class Data():
     def preprocess_one_train_dataset(self, dataset):
         """preprocess a training dataset, construct a data loader.
         """
-        # Use client-specific transform if available, otherwise use default
-        if dataset in self.transforms_dict:
-            transform = self.transforms_dict[dataset]['train_transform']
+        # Use only original transform '0' if option is enabled
+        if self.use_original_transform_only:
+            transform = self.transforms_dict['0']['train_transform']
+            print(f"Client {dataset}: Using original transform '0' for training")
         else:
-            transform = self.data_transforms['train']
+            # Use client-specific transform if available, otherwise use default
+            if dataset in self.transforms_dict:
+                transform = self.transforms_dict[dataset]['train_transform']
+            else:
+                transform = self.data_transforms['train']
         
         client_train_data = self.unified_metadata[
             (self.unified_metadata['split'] == 'train') & 
@@ -299,13 +305,16 @@ class Data():
             if client_name == '-1':
                 continue  # Skip the source data itself
             
-            # Use client-specific transform if available, otherwise use default
-            if client_name in self.transforms_dict:
-                transform = self.transforms_dict[client_name]['test_transform']
-                transform_name = self.transforms_dict[client_name]['name']
+            # Use only original transform '0' if option is enabled
+            if self.use_original_transform_only:
+                transform = self.transforms_dict['0']['test_transform']
+                print(f"Client {client_name}: Using original transform '0' for testing")
             else:
-                transform = self.data_transforms['val']
-                transform_name = 'default'
+                # Use client-specific transform if available, otherwise use default
+                if client_name in self.transforms_dict:
+                    transform = self.transforms_dict[client_name]['test_transform']
+                else:
+                    transform = self.data_transforms['val']
             
             
             # Use the same global data but with client-specific transforms

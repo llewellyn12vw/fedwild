@@ -77,20 +77,18 @@ class Client():
         return F.normalize(features, p=2, dim=1)
     
     def compute_fedgkd_distillation_loss(self, student_features, inputs):
-        """Compute FedGKD distillation loss using CSKD (Cosine Similarity-guided Knowledge Distillation)"""
+        """Compute FedGKD distillation loss using CSKD with feature-level temperature scaling"""
         if not self.fedgkd_enabled or self.fedgkd_ensemble_teacher is None:
             return torch.tensor(0.0, device=self.device, requires_grad=True)
             
-        # Proper teacher model gradient isolation
+        # Teacher model setup (unchanged)
         self.fedgkd_ensemble_teacher.eval()
         self.fedgkd_ensemble_teacher = self.fedgkd_ensemble_teacher.to(self.device)
         
-        # Ensure teacher gradients are blocked
         for param in self.fedgkd_ensemble_teacher.parameters():
             param.requires_grad = False
         
         with torch.no_grad():
-            # Extract features from teacher model
             teacher_features = self.fedgkd_ensemble_teacher.backbone(inputs)
             teacher_features = self.fedgkd_ensemble_teacher.feature_head(teacher_features)
         
@@ -102,56 +100,100 @@ class Client():
         student_features_norm = self.normalize_features(student_features)
         teacher_features_norm = self.normalize_features(teacher_features.detach())
         
-        # CSKD Loss: L = λ_m * G * MSE + λ_s * (1 - CosineSim)
-        cosine_sim = F.cosine_similarity(student_features_norm, teacher_features_norm, dim=1)
-        cosine_sim_mean = cosine_sim.mean()
+        # Compute per-sample cosine similarity and distances
+        cosine_sim = F.cosine_similarity(student_features_norm, teacher_features_norm, dim=1)  # [batch_size]
+        cosine_distance = 1.0 - cosine_sim  # [batch_size]
         
-        # Guidance map G based on cosine similarities (reduces capacity gap issues)
-        guidance_map = (1.0 + cosine_sim).unsqueeze(1)  # Shape: [batch_size, 1]
+        # === TEMPERATURE SCALING BASED ON COSINE DISTANCE ===
+        adaptive_temperatures = self.compute_adaptive_temperatures(cosine_distance)
         
-        # MSE loss with guidance
-        mse_loss = F.mse_loss(student_features, teacher_features, reduction='none')  # Per-sample loss
-        guided_mse = (guidance_map * mse_loss).mean()  # Apply guidance and average
+        # Apply temperature scaling to features and compute losses
+        temperature_scaled_loss = self.compute_temperature_scaled_losses(
+            student_features, teacher_features,
+            cosine_sim, cosine_distance, adaptive_temperatures
+        )
         
-        # Cosine similarity loss (encourages directional alignment)
-        cosine_loss = (1.0 - cosine_sim).mean()
+        return temperature_scaled_loss * self.fedgkd_distillation_coeff
+
+    def compute_adaptive_temperatures(self, cosine_distance):
+        """
+        Compute adaptive temperatures based on cosine distance
+        High distance (dissimilar) → High temperature → More aggressive learning
+        Low distance (similar) → Low temperature → More conservative learning
+        """
+        # Temperature range (inspired by CSWT paper)
+        T_min = 0.5   # Conservative learning for similar features
+        T_max = 2.5   # Aggressive learning for dissimilar features
         
-        # Combined CSKD loss with adaptive weighting
-        lambda_m = 0.7  # MSE weight
-        lambda_s = 0.3  # Cosine similarity weight
+        # Batch-wise normalization for stability
+        batch_min = cosine_distance.min()
+        batch_max = cosine_distance.max()
         
-        cskd_loss = lambda_m * guided_mse + lambda_s * cosine_loss
-        distillation_loss = cskd_loss * self.fedgkd_distillation_coeff
-        
-        # Enhanced debugging
-        if hasattr(self, '_debug_counter'):
-            self._debug_counter += 1
+        # Avoid division by zero
+        if batch_max == batch_min:
+            temperatures = torch.full_like(cosine_distance, (T_min + T_max) / 2)
         else:
-            self._debug_counter = 0
-            
-        if self._debug_counter % 5 == 0:  # Print every 30 batches
-            student_norm = torch.norm(student_features, dim=1).mean()
-            teacher_norm = torch.norm(teacher_features, dim=1).mean()
-
-            result_dir = os.path.join(self.project_dir, 'model',self.experiment_name, f'client_{self.cid}')
-            os.makedirs(result_dir, exist_ok=True)
-
-            csv_file = os.path.join(result_dir, 'cosine_sim.csv')
-            file_exists = os.path.isfile(csv_file)
-            row_data = [f"{cosine_sim_mean:.4f}",f"{student_norm:.4f}", f"{teacher_norm:.4f}"]  # Store round and last loss value
-
-            with open(csv_file, 'a', newline='') as f:
-                writer = csv.writer(f)
-                if not file_exists:
-                    header = ['cosine_sim','student_norm','teacher_norm']  # Replace with your column names
-                    writer.writerow(header)
-                writer.writerow(row_data)
-
-            print(f"  [CSKD DEBUG] Student norm: {student_norm:.4f}, Teacher norm: {teacher_norm:.4f}")
-            print(f"  [CSKD DEBUG] Cosine sim: {cosine_sim_mean:.4f}, Guided MSE: {guided_mse:.6f}, Cosine loss: {cosine_loss:.6f}")
-            print(f"  [CSKD DEBUG] Total CSKD: {cskd_loss:.6f}, Final loss: {distillation_loss:.6f}")
+            # Normalize distance to [0, 1] and map to temperature range
+            normalized_distance = (cosine_distance - batch_min) / (batch_max - batch_min)
+            temperatures = T_min + (T_max - T_min) * normalized_distance
         
-        return distillation_loss
+        return temperatures  # [batch_size]
+
+    def compute_temperature_scaled_losses(self, student_features, teacher_features, 
+                                        cosine_sim, cosine_distance, temperatures):
+        """
+        Compute temperature-scaled CSKD losses
+        """
+        batch_size = student_features.shape[0]
+        
+        # Temperature constants
+        T_min = 0.5
+        T_max = 2.5
+        
+        # === 1. TEMPERATURE-SCALED GUIDANCE MAP ===
+        # Base guidance map
+        base_guidance = (1.0 + cosine_sim).unsqueeze(1)  # [batch_size, 1]
+        
+        # Temperature modulation - higher temp = stronger guidance for dissimilar samples
+        temp_modulation = temperatures.unsqueeze(1)  # [batch_size, 1]
+        enhanced_guidance_map = base_guidance * temp_modulation
+        
+        # === 2. TEMPERATURE-SCALED MSE LOSS ===
+        # Apply temperature scaling to feature differences
+        feature_diff = student_features - teacher_features  # [batch_size, feature_dim]
+        
+        # Scale feature differences by temperature
+        temperature_scaled_diff = feature_diff * temperatures.unsqueeze(1)  # [batch_size, feature_dim]
+        
+        # Compute MSE with temperature-scaled differences
+        mse_per_sample = (temperature_scaled_diff ** 2).mean(dim=1)  # [batch_size]
+        
+        # Apply enhanced guidance map
+        guided_temp_mse = (enhanced_guidance_map.squeeze(1) * mse_per_sample).mean()
+        
+        # === 3. TEMPERATURE-SCALED COSINE LOSS ===
+        # Inverse temperature weighting for cosine loss
+        # High temp (dissimilar) → Focus on reconstruction (MSE)
+        # Low temp (similar) → Focus on alignment (cosine)
+        inverse_temp_weights = (T_max + T_min) - temperatures  # Invert relationship
+        
+        temperature_scaled_cosine_loss = (inverse_temp_weights * cosine_distance).mean()
+        
+        # === 4. ADAPTIVE LAMBDA WEIGHTING ===
+        # Adjust lambda based on average temperature in batch
+        mean_temperature = temperatures.mean()
+        
+        # Higher avg temp → More MSE focus (reconstruction)
+        # Lower avg temp → More cosine focus (alignment)  
+        temp_factor = (mean_temperature - T_min) / (T_max - T_min)  # [0, 1]
+        
+        lambda_m = 0.5 + 0.3 * temp_factor  # Range: [0.5, 0.8]
+        lambda_s = 0.5 - 0.3 * temp_factor  # Range: [0.2, 0.5]
+        
+        # === 5. COMBINED TEMPERATURE-SCALED LOSS ===
+        total_loss = lambda_m * guided_temp_mse + lambda_s * temperature_scaled_cosine_loss
+        
+        return total_loss
     
     def compute_cosine_sim(self, student_features, teacher_features):
         """Compute cosine similarity between student and teacher features"""

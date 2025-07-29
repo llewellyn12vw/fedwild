@@ -2,12 +2,24 @@
 
 # Test fixed FedGKD implementation with better parameters
 
-python main.py --ex_name leopard/reg/1  --cdw \
+python main.py --ex_name leopard/reg/2  --cdw \
     --local_epoch 2 \
     --num_of_clients 5 \
     --total_rounds 100 \
-    --metadata_file /home/wellvw12/fedwild/federated_leopards/metadata.csv \
+    --metadata_file /home/wellvw12/fedwild/federated_leopards_mild/metadata.csv \
     --dataset_type leopard \
+
+python main.py --fedgkd --ex_name leopard/fedgdk/3 --cdw \
+    --fedgkd_distillation_coeff 0.8 \
+    --fedgkd_temperature 1.0 \
+    --fedgkd_buffer_length 5 \
+    --local_epoch 2 \
+    --num_of_clients 5 \
+    --total_rounds 100 \
+    --metadata_file /home/wellvw12/fedwild/federated_leopards_mild/metadata.csv \
+    --dataset_type leopard \
+    --fedgkd_avg_param \
+    --fedgkd_start_round 0
 
 # python main.py --ex_name macaque/Ex1Reg/3  --cdw \
 #     --local_epoch 3 \

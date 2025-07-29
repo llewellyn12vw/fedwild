@@ -1,0 +1,62 @@
+============================================================
+FEDERATED DATA DISTRIBUTION STATISTICS
+============================================================
+
+CONFIGURATION:
+------------------------------
+Dataset: leopard
+Number of clients: 5
+Dirichlet alpha: 0.9
+Query size: 30 IDs
+Samples per query ID: 2
+Samples per gallery ID: 5
+Minimum samples per ID: 2
+Maximum samples per ID: 100
+Minimum training samples per ID: 2
+Random seed: 27
+
+OVERALL STATISTICS:
+------------------------------
+Total samples: 4967
+Total unique IDs: 380
+
+SPLIT DISTRIBUTION:
+------------------------------
+Train: 4757 samples, 377 unique IDs
+Query: 60 samples, 30 unique IDs
+Gallery: 150 samples, 30 unique IDs
+
+CLIENT DISTRIBUTION:
+------------------------------
+Client 0: 489 samples, 31 unique IDs
+Client 1: 1239 samples, 84 unique IDs
+Client 2: 409 samples, 27 unique IDs
+Client 3: 1700 samples, 149 unique IDs
+Client 4: 920 samples, 86 unique IDs
+
+HETEROGENEITY ANALYSIS:
+------------------------------
+Sample distribution across clients:
+  - Min: 409 samples
+  - Max: 1700 samples
+  - Mean: 951.4 samples
+  - Std: 480.0 samples
+  - Coefficient of Variation: 0.505
+
+ID distribution across clients:
+  - Min: 27 IDs
+  - Max: 149 IDs
+  - Mean: 75.4 IDs
+  - Std: 44.5 IDs
+  - Coefficient of Variation: 0.591
+
+DATA OVERLAP ANALYSIS:
+------------------------------
+Total unique training IDs across all clients: 377
+Overlapping IDs between clients: 0
+Data isolation: Perfect
+
+DIRICHLET PARAMETER INTERPRETATION:
+------------------------------
+α < 1.0: Slightly heterogeneous (mildly non-IID)
+Current α = 0.9: Highly imbalanced distribution

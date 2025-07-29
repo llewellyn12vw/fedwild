@@ -1,0 +1,26 @@
+============================================================
+METADATA INFORMATION
+============================================================
+
+Metadata Source: /home/wellvw12/fedwild/federated_leopards_mild/metadata.csv
+Metadata CSV Path: /home/wellvw12/fedwild/federated_leopards_mild/metadata.csv
+
+METADATA STATISTICS:
+------------------------------
+Total Samples: 6756
+Total Unique IDs: 380
+
+Split Distribution:
+  train: 6546 samples (379 unique IDs)
+  gallery: 150 samples (30 unique IDs)
+  query: 60 samples (30 unique IDs)
+
+Client Distribution:
+  Shared (query/gallery): 210 samples
+  Client 0: 515 training samples (43 unique IDs)
+  Client 1: 346 training samples (16 unique IDs)
+  Client 2: 2892 training samples (151 unique IDs)
+  Client 3: 1169 training samples (76 unique IDs)
+  Client 4: 1624 training samples (93 unique IDs)
+
+============================================================
