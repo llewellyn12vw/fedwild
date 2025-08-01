@@ -1,5 +1,5 @@
 from wildlife_datasets import splits
-from wildlife_datasets.datasets import LeopardID2022, MacaqueFaces
+from wildlife_datasets.datasets import LeopardID2022, MacaqueFaces, HyenaID2022
 import os
 import pandas as pd
 import numpy as np
@@ -8,25 +8,25 @@ from collections import defaultdict
 
 def parse_args():
     parser = argparse.ArgumentParser(description='Federated Data Splitter with Client Allocation')
-    parser.add_argument('--dataset_path', default='/home/wellvw12/fedwild/MacaqueFaces', type=str, help='Path to dataset')
-    parser.add_argument('--output_dir', default='/home/wellvw12/fedwild/macaque_help', type=str, help='Output directory')
-    parser.add_argument('--dataset_type', default='macaque', choices=['leopard', 'macaque'], help='Dataset type')
+    parser.add_argument('--dataset_path', default='/home/wellvw12/hyenaid2022', type=str, help='Path to dataset')
+    parser.add_argument('--output_dir', default='/home/wellvw12/fedwild/hyena_final', type=str, help='Output directory')
+    parser.add_argument('--dataset_type', default='hyena', choices=['leopard', 'macaque','hyena'], help='Dataset type')
     
     # Query/Gallery parameters
-    parser.add_argument('--query_size', default=7, type=int, help='Number of query samples (IDs)')
+    parser.add_argument('--query_size', default=30, type=int, help='Number of query samples (IDs)')
     parser.add_argument('--samples_per_query_id', default=2, type=int, help='Number of samples per query ID')
     parser.add_argument('--samples_per_gallery_id', default=8, type=int, help='Number of samples per gallery ID')
     
     # Client federation parameters
-    parser.add_argument('--num_clients', default=3, type=int, help='Number of federated clients')
-    parser.add_argument('--alpha', default=0.6, type=float, help='Dirichlet alpha parameter (lower = more heterogeneous)')
+    parser.add_argument('--num_clients', default=4, type=int, help='Number of federated clients')
+    parser.add_argument('--alpha', default=0.9, type=float, help='Dirichlet alpha parameter (lower = more heterogeneous)')
     
     # General parameters
     parser.add_argument('--min_samples_per_id', default=2, type=int, help='Minimum samples per ID for inclusion')
-    parser.add_argument('--max_samples_per_id', default=40, type=int, help='Maximum samples per ID to include in training (None = no limit)')
+    parser.add_argument('--max_samples_per_id', default=None, type=int, help='Maximum samples per ID to include in training (None = no limit)')
     parser.add_argument('--min_train_samples_per_id', default=2, type=int, help='Minimum samples per ID in training data')
     parser.add_argument('--exclude_unknown', default=True, type=bool, help='Exclude samples with unknown identities')
-    parser.add_argument('--random_seed', default=56, type=int, help='Random seed for reproducibility')
+    parser.add_argument('--random_seed', default=27, type=int, help='Random seed for reproducibility')
     
     return parser.parse_args()
 
@@ -350,6 +350,8 @@ def main():
         dataset = LeopardID2022(args.dataset_path).metadata
     elif args.dataset_type == 'macaque':
         dataset = MacaqueFaces(args.dataset_path).metadata
+    elif args.dataset_type == 'hyena':
+        dataset = HyenaID2022(args.dataset_path).metadata
     else:
         raise ValueError(f"Unknown dataset type: {args.dataset_type}")
     

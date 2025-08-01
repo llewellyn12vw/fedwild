@@ -1,0 +1,66 @@
+================================================================================
+FEDERATED LEARNING EXPERIMENT SUMMARY
+================================================================================
+
+EXPERIMENT INFORMATION:
+----------------------------------------
+Name: leopard_final/fedgdk/1
+Timestamp: 2025-07-29T22:49:46.061674
+Total Rounds: 100
+
+DATASET CONFIGURATION:
+----------------------------------------
+Dataset Type: leopard
+Client Datasets: beskydy,nps,sumava
+Metadata File: /home/wellvw12/fedwild/federated_leopards_final/metadata.csv
+Use All Training Data: False
+Image Size: 128x128
+
+MODEL CONFIGURATION:
+----------------------------------------
+Model Architecture: resnet18_ft_net
+Model Name: federated_model
+Drop Rate: 0.03
+Stride: 2
+
+TRAINING CONFIGURATION:
+----------------------------------------
+Learning Rate: 0.001
+Total Rounds: 100
+Batch Size: 32
+Local Epochs: 1
+Number of Clients: 5
+Image Size: 128x128
+
+OPTIMIZATION TECHNIQUES:
+----------------------------------------
+Cosine Distance Weighting (CDW): False
+Knowledge Distillation (KD): False
+
+FEDGKD CONFIGURATION:
+----------------------------------------
+FedGKD Enabled: True
+  - Buffer Length: 4
+  - Distillation Coefficient: 0.1
+  - Temperature: 2.0
+  - Average Parameters: True
+  - Start Round: 0
+  - Strategy: FedGKD (simple averaging)
+
+DATA AUGMENTATION:
+----------------------------------------
+Random Erasing Probability: 0
+Color Jitter: False
+
+SYSTEM INFORMATION:
+----------------------------------------
+Platform: Linux-5.10.0-35-cloud-amd64-x86_64-with-glibc2.31
+Python Version: 3.10.15
+PyTorch Version: 2.7.1+cu126
+CUDA Available: True
+CUDA Version: 12.6
+GPU Count: 1
+
+================================================================================
+Configuration saved at: 2025-07-29T22:49:46.064246
+================================================================================

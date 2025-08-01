@@ -1,0 +1,24 @@
+============================================================
+METADATA INFORMATION
+============================================================
+
+Metadata Source: /home/wellvw12/fedwild/small_test_leopards/metadata.csv
+Metadata CSV Path: /home/wellvw12/fedwild/small_test_leopards/metadata.csv
+
+METADATA STATISTICS:
+------------------------------
+Total Samples: 310
+Total Unique IDs: 32
+
+Split Distribution:
+  train: 160 samples (19 unique IDs)
+  gallery: 120 samples (15 unique IDs)
+  query: 30 samples (15 unique IDs)
+
+Client Distribution:
+  Shared (query/gallery): 150 samples
+  Client 0: 100 training samples (10 unique IDs)
+  Client 1: 40 training samples (5 unique IDs)
+  Client 2: 20 training samples (4 unique IDs)
+
+============================================================

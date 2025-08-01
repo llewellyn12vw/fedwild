@@ -57,8 +57,8 @@ class Client():
                 (1 + math.cos(math.pi * round_num / self.total_rounds)) / 2
         else:
             # Original exponential decay
-            # self.current_lr = self.initial_lr * (0.98 ** round_num)
-            pass
+            self.current_lr = self.initial_lr * (0.98 ** round_num)
+            # pass
         
         if round_num % 10 == 0:  # Print every 10 rounds
             print(f"Client {self.cid}, Round {round_num}: LR = {self.current_lr:.8f}")

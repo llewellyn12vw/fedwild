@@ -5,14 +5,14 @@ FEDERATED LEARNING EXPERIMENT SUMMARY
 EXPERIMENT INFORMATION:
 ----------------------------------------
 Name: leopard_final/reg/1
-Timestamp: 2025-07-29T15:28:18.229338
+Timestamp: 2025-07-29T22:50:12.694446
 Total Rounds: 100
 
 DATASET CONFIGURATION:
 ----------------------------------------
 Dataset Type: leopard
 Client Datasets: beskydy,nps,sumava
-Metadata File: /home/wellvw12/fedReID/federated_leopards_final/metadata.csv
+Metadata File: /home/wellvw12/fedwild/federated_leopards_final/metadata.csv
 Use All Training Data: False
 Image Size: 128x128
 
@@ -55,5 +55,5 @@ CUDA Version: 12.6
 GPU Count: 1
 
 ================================================================================
-Configuration saved at: 2025-07-29T15:28:18.232514
+Configuration saved at: 2025-07-29T22:50:12.697021
 ================================================================================

@@ -20,9 +20,9 @@ def parse_args():
     parser.add_argument('--dataset_type', default='leopard', choices=['leopard', 'macaque'], help='Dataset type')
     
     # Query/Gallery parameters
-    parser.add_argument('--query_size', default=20, type=int, help='Number of query samples (IDs)')
+    parser.add_argument('--query_size', default=15, type=int, help='Number of query samples (IDs)')
     parser.add_argument('--samples_per_query_id', default=2, type=int, help='Number of samples per query ID')
-    parser.add_argument('--samples_per_gallery_id', default=10, type=int, help='Number of samples per gallery ID')
+    parser.add_argument('--samples_per_gallery_id', default=8, type=int, help='Number of samples per gallery ID')
     
     # General parameters
     parser.add_argument('--min_samples_per_id', default=4, type=int, help='Minimum samples per ID for inclusion (query+gallery+training)')
@@ -138,7 +138,7 @@ def create_small_clients(metadata, random_seed=42):
         (100, 10),  # Client 0: 50 samples, ~5 per ID
         (40, 8),  # Client 1: 30 samples, ~3 per ID
         (20, 5),  # Client 2: 10 samples, ~2 per ID
-        (10, 5),   # Client 3: 5 samples, ~2 per ID
+        # (10, 5),   # Client 3: 5 samples, ~2 per ID
     ]
     
     # Get available identities and shuffle
@@ -214,7 +214,7 @@ def create_small_clients(metadata, random_seed=42):
     
     # Verify no overlap between clients
     all_assigned_ids = set()
-    for client_id in range(4):
+    for client_id in range(len(client_configs)):
         if len(client_metadata[client_id]) > 0:
             client_ids = set(client_metadata[client_id]['identity'].unique())
             overlap = all_assigned_ids.intersection(client_ids)
@@ -247,7 +247,7 @@ def create_unified_metadata(query_metadata, gallery_metadata, client_metadata):
         all_data.append(gallery_df)
     
     # Add training data for each client
-    for client_id in range(4):  # 4 hardcoded clients
+    for client_id in range(3):  # 4 hardcoded clients
         if len(client_metadata[client_id]) > 0:
             train_df = client_metadata[client_id].copy()
             train_df['split'] = 'train'
@@ -322,7 +322,7 @@ def save_detailed_stats(args, unified_metadata, client_metadata):
         f.write("-" * 30 + "\n")
         
         client_sizes = []
-        for client_id in range(4):
+        for client_id in range(3):
             if len(client_metadata[client_id]) > 0:
                 num_samples = len(client_metadata[client_id])
                 num_ids = client_metadata[client_id]['identity'].nunique()
@@ -359,7 +359,7 @@ def save_detailed_stats(args, unified_metadata, client_metadata):
         all_train_ids = set()
         overlapping_ids = set()
         
-        for client_id in range(4):
+        for client_id in range(3):
             if len(client_metadata[client_id]) > 0:
                 client_ids = set(client_metadata[client_id]['identity'].unique())
                 intersection = all_train_ids.intersection(client_ids)
@@ -452,13 +452,13 @@ def main():
     print(f"Query set: {len(query_metadata)} samples from {args.query_size} IDs")
     print(f"Gallery set: {len(gallery_metadata)} samples from {args.query_size} IDs")
     
-    total_train_samples = sum(len(client_metadata[i]) for i in range(4))
+    total_train_samples = sum(len(client_metadata[i]) for i in range(3))
     total_train_ids = len(remaining_metadata['identity'].unique()) if len(remaining_metadata) > 0 else 0
     print(f"Training set: {total_train_samples} samples from {total_train_ids} IDs")
     print(f"Distributed across 4 clients: [50, 30, 10, 5] target samples")
     
     # Show actual client sizes
-    actual_sizes = [len(client_metadata[i]) for i in range(4)]
+    actual_sizes = [len(client_metadata[i]) for i in range(3)]
     print(f"Actual client sizes: {actual_sizes}")
     
     print(f"\nOutput saved to: {args.output_dir}")

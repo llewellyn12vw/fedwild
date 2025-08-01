@@ -221,6 +221,9 @@ class Data():
         elif self.dataset_type == 'macaque':
             root = MacaqueFaces('/home/wellvw12/fedwild/MacaqueFaces').root
             return WildlifeDataset(client_data,root, transform=transform)
+        elif self.dataset_type == 'hyena':
+            root = HyenaID2022('/home/wellvw12/lep_hyn').root
+            return WildlifeDataset(client_data,root, transform=transform)
 
 
     def preprocess_kd_data(self, dataset):

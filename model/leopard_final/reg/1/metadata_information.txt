@@ -2,8 +2,8 @@
 METADATA INFORMATION
 ============================================================
 
-Metadata Source: /home/wellvw12/fedReID/federated_leopards_final/metadata.csv
-Metadata CSV Path: /home/wellvw12/fedReID/federated_leopards_final/metadata.csv
+Metadata Source: /home/wellvw12/fedwild/federated_leopards_final/metadata.csv
+Metadata CSV Path: /home/wellvw12/fedwild/federated_leopards_final/metadata.csv
 
 METADATA STATISTICS:
 ------------------------------

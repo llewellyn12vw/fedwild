@@ -1,0 +1,69 @@
+============================================================
+FEDERATED DATA DISTRIBUTION STATISTICS
+============================================================
+
+CONFIGURATION:
+------------------------------
+Dataset: hyena
+Number of clients: 4
+Dirichlet alpha: 0.9
+Query size: 30 IDs
+Samples per query ID: 2
+Samples per gallery ID: 8
+Minimum samples per ID: 2
+Maximum samples per ID: unlimited
+Minimum training samples per ID: 2
+Random seed: 27
+
+OVERALL STATISTICS:
+------------------------------
+Total samples: 3129
+Total unique IDs: 256
+
+SPLIT DISTRIBUTION:
+------------------------------
+Train: 2829 samples, 247 unique IDs
+Query: 60 samples, 30 unique IDs
+Gallery: 240 samples, 30 unique IDs
+
+CLIENT DISTRIBUTION:
+------------------------------
+Client 0: 386 samples, 27 unique IDs
+  - Samples per ID: min=2, max=50, mean=14.3
+  - Top 5 IDs: ['7251cda9-d3d5-4249-baf0-4f4c1480adc9', '7b38f393-27e8-45e1-9769-fa9af9f591f9', 'f1aa3589-f203-4455-a293-86f392932895', '310eb8ee-7097-4ea5-b91e-31ce40b9685c', '5714276c-6415-4eae-980b-1e4b923847b2']
+Client 1: 818 samples, 71 unique IDs
+  - Samples per ID: min=2, max=70, mean=11.5
+  - Top 5 IDs: ['e217374d-17e1-4fa2-b4aa-868033edc1ed', '2c47b308-3b61-45db-b6fd-f1560b32f358', '02e5fbda-3d57-4b0a-be41-2b151ac1ff30', '74d538f0-cb3e-4982-9584-7e0f886b8397', '8b046377-529a-460d-8114-887322c52cde']
+Client 2: 217 samples, 23 unique IDs
+  - Samples per ID: min=2, max=28, mean=9.4
+  - Top 5 IDs: ['f4a2038b-8da9-451e-ae71-80cb90cb07b3', '08626c7e-f14d-4a22-8b38-f8474c0196de', '5260c0df-76a3-4cb1-82fc-fd2f6a6440ad', 'b422e55f-0afc-4b34-922e-9da329a2f53e', '7250d64b-90db-40d5-8db0-db0b74f86cd3']
+Client 3: 1408 samples, 126 unique IDs
+  - Samples per ID: min=2, max=90, mean=11.2
+  - Top 5 IDs: ['fee1977a-deac-4eb4-a1ba-5a5f669a9817', '34365bcc-5b2d-4f80-b721-ef7039e64fe8', '4004afe6-b476-475e-867c-8d3b17e378c6', 'bbbaafbc-3889-4d6f-843b-d58fb94fb07c', '6e8d3aef-1f16-4b06-a5d4-9cf11fd29530']
+
+HETEROGENEITY ANALYSIS:
+------------------------------
+Sample distribution across clients:
+  - Min: 217 samples
+  - Max: 1408 samples
+  - Mean: 707.2 samples
+  - Std: 460.1 samples
+  - Coefficient of Variation: 0.651
+
+ID distribution across clients:
+  - Min: 23 IDs
+  - Max: 126 IDs
+  - Mean: 61.8 IDs
+  - Std: 41.6 IDs
+  - Coefficient of Variation: 0.674
+
+DATA OVERLAP ANALYSIS:
+------------------------------
+Total unique training IDs across all clients: 247
+Overlapping IDs between clients: 0
+Data isolation: Perfect
+
+DIRICHLET PARAMETER INTERPRETATION:
+------------------------------
+α < 1.0: Slightly heterogeneous (mildly non-IID)
+Current α = 0.9: Highly imbalanced distribution

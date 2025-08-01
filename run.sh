@@ -11,14 +11,14 @@
 #     --metadata_file /home/wellvw12/fedwild/macaque_help/metadata.csv \
 #     --dataset_type macaques \
 
-python main.py --fedgkd --ex_name macaque_help/fedgdk/2 \
+python main.py --fedgkd --ex_name hyena_final/fedgdk/1 \
     --fedgkd_distillation_coeff 0.1 \
     --fedgkd_buffer_length 4 \
     --local_epoch 1 \
-    --num_of_clients 3 \
+    --num_of_clients 4 \
     --total_rounds 100 \
-    --metadata_file /home/wellvw12/fedwild/macaque_help/metadata.csv \
-    --dataset_type macaque \
+    --metadata_file /home/wellvw12/fedwild/hyena_final/metadata.csv \
+    --dataset_type hyena \
     --fedgkd_avg_param \
     --fedgkd_start_round 0 \
 

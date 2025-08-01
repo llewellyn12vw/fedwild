@@ -1,7 +1,7 @@
 {
   "experiment_info": {
     "name": "leopard_final/reg/1",
-    "timestamp": "2025-07-29T15:28:18.229338",
+    "timestamp": "2025-07-29T22:50:12.694446",
     "total_rounds": 100,
     "project_dir": ".",
     "data_dir": "/home/wellvw12/fedwild/MacaqueFaces"
@@ -9,7 +9,7 @@
   "dataset_config": {
     "dataset_type": "leopard",
     "datasets": "beskydy,nps,sumava",
-    "metadata_file": "/home/wellvw12/fedReID/federated_leopards_final/metadata.csv",
+    "metadata_file": "/home/wellvw12/fedwild/federated_leopards_final/metadata.csv",
     "train_all": false,
     "image_size": 128
   },

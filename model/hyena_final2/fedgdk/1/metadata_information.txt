@@ -1,0 +1,25 @@
+============================================================
+METADATA INFORMATION
+============================================================
+
+Metadata Source: /home/wellvw12/fedwild/hyena_final/metadata.csv
+Metadata CSV Path: /home/wellvw12/fedwild/hyena_final/metadata.csv
+
+METADATA STATISTICS:
+------------------------------
+Total Samples: 3129
+Total Unique IDs: 256
+
+Split Distribution:
+  train: 2829 samples (247 unique IDs)
+  gallery: 240 samples (30 unique IDs)
+  query: 60 samples (30 unique IDs)
+
+Client Distribution:
+  Shared (query/gallery): 300 samples
+  Client 0: 386 training samples (27 unique IDs)
+  Client 1: 818 training samples (71 unique IDs)
+  Client 2: 217 training samples (23 unique IDs)
+  Client 3: 1408 training samples (126 unique IDs)
+
+============================================================

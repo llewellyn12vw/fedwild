@@ -1,0 +1,63 @@
+============================================================
+SMALL TEST FEDERATED DATA STATISTICS
+============================================================
+
+CONFIGURATION:
+------------------------------
+Dataset: leopard
+Number of clients: 4 (hardcoded)
+Client sizes: [50, 30, 10, 5] samples
+Query size: 15 IDs
+Samples per query ID: 2
+Samples per gallery ID: 8
+Minimum samples per ID: 4
+Random seed: 42
+
+OVERALL STATISTICS:
+------------------------------
+Total samples: 310
+Total unique IDs: 32
+
+SPLIT DISTRIBUTION:
+------------------------------
+Train: 160 samples, 19 unique IDs
+Query: 30 samples, 15 unique IDs
+Gallery: 120 samples, 15 unique IDs
+
+CLIENT DISTRIBUTION DETAILS:
+------------------------------
+Client 0:
+  - Samples: 100
+  - Unique IDs: 10
+  - Avg samples per ID: 10.0
+  - Samples per ID range: 10-10
+  - Identity list: ['18ffc687-a6fc-4f53-b226-72eaf7f66ccc', 'f1116150-8ea6-4a26-a0b8-90208a8a2248', '731cfe98-79ff-4126-97c7-6d1268fd4efc', 'a1d0fd59-883e-4e53-a313-6264f2f247fa', '5677ac0a-9e2c-4650-9b91-73fe817c31ac', '1662812e-a722-4e7c-b0e5-1a60da1775b4', 'adecac15-4317-4127-8654-f465fef8e733', '0d3642d3-39fd-452a-8fe5-b0daa2f623e0', '48586dfd-d491-4c06-91b9-2fbfcf5c6cdd', 'a566ddcd-8bf8-4f8e-9a61-f434b01b0799']
+
+Client 1:
+  - Samples: 40
+  - Unique IDs: 5
+  - Avg samples per ID: 8.0
+  - Samples per ID range: 8-8
+  - Identity list: ['f9fd85b1-e3bb-45a3-9cb4-06f0c04ec8c2', '3d8b57b0-4a3d-462f-b49b-eccc67b11565', '1c938299-6ff9-4d8b-aaeb-4f8d372093c2', '81ad30d8-15c7-492e-918b-d9592d8f3f08', '1bdfbe29-6b69-48e9-8c8b-d8d145bdeef3']
+
+Client 2:
+  - Samples: 20
+  - Unique IDs: 4
+  - Avg samples per ID: 5.0
+  - Samples per ID range: 5-5
+  - Identity list: ['1265fe94-c093-4beb-9cf2-28b7eb458cab', '4f8ff8ad-8782-4a1c-be11-4aa4021a3706', '73ad3a4b-9195-48d4-804f-b1fd9df95790', '6884b482-7e06-461c-ab3e-42e3ac27511f']
+
+SUMMARY STATISTICS:
+------------------------------
+Total training samples: 160
+Client size distribution: [100, 40, 20]
+Min client size: 20
+Max client size: 100
+Mean client size: 53.3
+Std client size: 34.0
+
+DATA ISOLATION:
+------------------------------
+Total unique training IDs: 19
+Overlapping IDs: 0
+Perfect isolation: Yes
